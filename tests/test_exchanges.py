@@ -71,3 +71,87 @@ def test_compute_rate_top5_and_empty():
     r = compute_rate("x", SELL, ads, top_n=5)
     assert r.best == 10 and r.avg5 == 8 and r.ads == 7
     assert compute_rate("x", BUY, []) is None
+
+
+# ---------- Binance signed C2C agent API ----------
+import asyncio
+import hashlib
+import hmac
+from urllib.parse import parse_qsl, urlsplit
+
+import httpx
+
+
+def test_binance_signed_query_keeps_order_and_signs():
+    q = binance.signed_query("s3cret", now_ms=1700000000000)
+    base, sig = q.rsplit("&signature=", 1)
+    assert base == "recvWindow=60000&timestamp=1700000000000"          # insertion order, not sorted
+    assert sig == hmac.new(b"s3cret", base.encode(), hashlib.sha256).hexdigest()
+
+
+def test_binance_authenticated_fetch_uses_sapi_and_parses():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = request.url
+        seen["headers"] = request.headers
+        seen["body"] = request.read()
+        return httpx.Response(200, json=load("binance_buy_synthetic.json"))
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            ex = binance.Binance(client, 20, api_key="KEY", api_secret="SECRET")
+            return await ex.fetch(BUY)
+
+    ads = asyncio.run(go())
+    assert [a.price for a in ads] == [4835, 4830, 4840]
+    u = urlsplit(str(seen["url"]))
+    assert u.netloc == "api.binance.com" and u.path == "/sapi/v1/c2c/agent/ads/search"
+    params = dict(parse_qsl(u.query))
+    base = f"recvWindow={params['recvWindow']}&timestamp={params['timestamp']}"
+    assert params["signature"] == hmac.new(b"SECRET", base.encode(), hashlib.sha256).hexdigest()
+    assert seen["headers"]["X-MBX-APIKEY"] == "KEY"
+    assert seen["headers"]["User-Agent"] == "binance-wallet/1.0.0 (Skill)"
+    body = json.loads(seen["body"])
+    assert body["fiat"] == "MMK" and body["asset"] == "USDT" and body["tradeType"] == "BUY"
+
+
+def test_binance_api_error_message_surfaces():
+    def handler(request):
+        return httpx.Response(401, json={"code": -2015, "msg": "Invalid API-key, IP, or permissions for action."})
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await binance.Binance(client, 20, "KEY", "SECRET").fetch(SELL)
+
+    with pytest.raises(ExchangeError, match="Invalid API-key, IP"):
+        asyncio.run(go())
+
+
+def test_binance_auto_enabled_when_key_set():
+    from app.config import Settings
+    assert Settings(_env_file=None).exchange_list == ["bybit", "bitget"]
+    s = Settings(_env_file=None, binance_api_key="k", binance_api_secret="s")
+    assert s.exchange_list == ["binance", "bybit", "bitget"]
+    s = Settings(_env_file=None, binance_api_key="k", binance_api_secret="s", exchanges="bitget,binance")
+    assert s.exchange_list == ["bitget", "binance"]                  # explicit order respected, no duplicate
+
+
+def test_binance_backs_off_after_rate_limit():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        return httpx.Response(429, headers={"Retry-After": "120"}, json={"code": -1003, "msg": "Too many requests"})
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            ex = binance.Binance(client, 20, "KEY", "SECRET")
+            for _ in range(3):
+                with pytest.raises(ExchangeError, match="rate limited"):
+                    await ex.fetch(BUY)
+            return ex
+
+    ex = asyncio.run(go())
+    assert len(calls) == 1                       # no further calls during the back-off
+    assert ex.backoff_until - __import__("time").time() > 100

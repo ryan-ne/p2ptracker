@@ -150,7 +150,7 @@ class Summarizer(Protocol):
 
 
 BASE_PROMPT = (
-    "You watch USDT/MMK peer-to-peer (P2P) exchange rates on Bybit and Bitget for traders in Myanmar. "
+    "You watch USDT/MMK peer-to-peer (P2P) exchange rates on several exchanges (named in the data) for traders in Myanmar. "
     "BUY is the price a user pays for 1 USDT; SELL is what a user receives for 1 USDT. "
     "A rule-based detector has flagged unusual price behaviour. Write 2-3 short sentences of plain text "
     "for a Telegram group: what happened, whether it shows up on both exchanges or one, and anything "

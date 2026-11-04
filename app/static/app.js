@@ -298,6 +298,7 @@ async function loadSettings() {
   const s = await api("/api/settings");
   state.settings = s;
   $("paused").checked = !!s.alerts_paused;
+  $("pairSub").textContent = "P2P · " + s.exchanges.map((x) => x[0].toUpperCase() + x.slice(1)).join(" + ");
   setIntervalUI(s.poll_interval);
   $("tgState").textContent = s.telegram_enabled ? "Telegram connected" : "Telegram not configured";
   if (!$("ruleEx").options.length) {

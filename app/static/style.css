@@ -19,7 +19,8 @@
   --buy: #2ebd85;         /* buy buttons */
   --down: #f6465d;        /* price down / sell */
   --warn: #f0b90b;
-  --bybit: #f7a600;
+  --binance: #f0b90b;
+  --bybit: #ff6b2c;
   --bitget: #22d1ee;
   color-scheme: dark;
 }

@@ -52,7 +52,10 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         app.state.session_secret = secret
 
         client = httpx.AsyncClient(timeout=settings.request_timeout, http2=False)
-        exchanges = build_exchanges(settings.exchange_list, client, settings.ads_per_fetch)
+        exchanges = build_exchanges(settings.exchange_list, client, settings.ads_per_fetch,
+                                    settings.binance_api_key, settings.binance_api_secret)
+        if "binance" in settings.exchange_list and not settings.binance_enabled:
+            log.warning("binance listed without BINANCE_API_KEY/SECRET: anonymous requests get no MMK ads")
 
         bot = None
         if settings.telegram_bot_token:

@@ -41,13 +41,22 @@ class Settings(BaseSettings):
     # Display timezone for alert messages
     display_tz: str = "Asia/Yangon"
 
-    # Which exchanges to poll. Binance is supported but off by default: it only shows MMK ads to
-    # logged-in Myanmar-KYC accounts, so anonymous polling returns no ads.
+    # Which exchanges to poll. Binance only shows MMK ads to Myanmar-KYC accounts, so it needs a
+    # read-only API key from such an account (below); it is added automatically when the key is set.
     exchanges: str = "bybit,bitget"
+    binance_api_key: str = ""
+    binance_api_secret: str = ""
+
+    @property
+    def binance_enabled(self) -> bool:
+        return bool(self.binance_api_key and self.binance_api_secret)
 
     @property
     def exchange_list(self) -> list[str]:
-        return [e.strip().lower() for e in self.exchanges.split(",") if e.strip()]
+        names = [e.strip().lower() for e in self.exchanges.split(",") if e.strip()]
+        if self.binance_enabled and "binance" not in names:
+            names.insert(0, "binance")
+        return names
 
 
 @lru_cache

@@ -1,6 +1,6 @@
 # p2ptracker — USDT/MMK P2P rate tracker
 
-Polls USDT↔MMK P2P ads on **Bybit and Bitget** every 5 seconds, stores rates in SQLite,
+Polls USDT↔MMK P2P ads on **Binance (with a read-only API key), Bybit and Bitget** every 5 seconds, stores rates in SQLite,
 serves a historical dashboard, and sends **Telegram alerts** when a price crosses your thresholds.
 
 - **BUY** = you buy USDT (merchants' sell ads; lower is better)
@@ -70,14 +70,19 @@ curl -s -X POST https://api2.bybit.com/fiat/otc/item/online -H 'Content-Type: ap
 curl -s -X POST https://www.bitget.com/v1/p2p/pub/adv/queryAdvList -H 'Content-Type: application/json' -d '{"side":1,"pageNo":1,"pageSize":3,"coinCode":"USDT","fiatCode":"MMK","languageType":0}' | head -c 300; echo
 ```
 
-### Why Binance is off by default
+### Binance (needs a read-only API key)
 
-The Binance adapter exists (`app/exchanges/binance.py`) but Binance only offers MMK on P2P to
-logged-in accounts with Myanmar KYC. Anonymous requests get a region-based fiat list without MMK
-(verified from JP, SG and a home connection), so polling returns no ads. Adding `binance` to
-`EXCHANGES` is harmless — the dashboard just shows it as "No ads returned". Feeding the tracker your
-Binance session cookies would work around this but is not supported: it puts a live session for
-your real account on the server.
+Binance only offers MMK on P2P to accounts with Myanmar KYC; anonymous requests get a region-based
+fiat list without MMK (verified from JP, SG and Thailand). With an API key from such an account,
+the official signed endpoint `POST /sapi/v1/c2c/agent/ads/search` returns the real MMK ads.
+
+1. Binance → **API Management → Create API → System generated**.
+2. Enable **only "Enable Reading"** (no trading, no withdrawals) and **restrict access to your VPS IP**.
+3. Put `BINANCE_API_KEY` and `BINANCE_API_SECRET` in `.env` — Binance is then added to the tracked
+   exchanges automatically — and `docker compose up -d`.
+
+On HTTP 429/418 the adapter pauses Binance requests (honouring `Retry-After`) so the IP isn't banned.
+To stop, delete the key in Binance (instant) or remove it from `.env`.
 
 ## Dashboard login & settings
 
