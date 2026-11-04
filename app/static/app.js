@@ -2,19 +2,27 @@
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const EX_COLOR = (ex) => css(`--${ex}`) || "#848e9c";
-const PM_COLORS = ["#fcd535", "#0ecb81", "#3b82f6", "#f6465d", "#a78bfa", "#22d1ee", "#f97316"];
+// Payment-method accent bars, matching the colours Binance P2P shows for MMK methods.
+const PM_KNOWN = { kbzpay: "#1e88e5", "cb pay": "#1e88e5", uabpay: "#1e88e5", mmqr: "#1e88e5",
+  wavepay: "#fcd535", "wave pay": "#fcd535", "wave money": "#fcd535", "aya pay": "#f6465d", "nug pay": "#f6465d",
+  "bank transfer": "#2ebd85", "cash deposit to bank": "#2ebd85", "spring development bank": "#2ebd85" };
+const PM_COLORS = ["#fcd535", "#2ebd85", "#1e88e5", "#f6465d", "#b7bdc6"];
 const TZ = "Asia/Yangon";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (v, d = 2) => (v == null ? "–" : Number(v).toLocaleString("en-US", { maximumFractionDigits: d }));
 const fmtTime = (ts, opts = {}) => new Date(ts * 1000).toLocaleString("en-GB", { timeZone: TZ, hour12: false, ...opts });
 const opSym = (op) => (op === "<=" ? "≤" : "≥");
-const pmColor = (name) => PM_COLORS[[...String(name)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % PM_COLORS.length];
+const pmColor = (name) => PM_KNOWN[String(name).toLowerCase()] || PM_COLORS[[...String(name)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % PM_COLORS.length];
 
 const state = { side: "BUY", ex: "", range: "24h", histSide: "", metric: "best", settings: null, chart: null, filtersDirty: false };
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (r.status === 401) {  // session expired or password changed
+    location.replace("/login?next=" + encodeURIComponent(location.pathname));
+    throw new Error("login required");
+  }
   if (!r.ok) {
     let msg = r.statusText;
     try { const j = await r.json(); msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {}
@@ -49,7 +57,7 @@ async function refreshLatest() {
 
   $("cards").innerHTML = Object.entries(d.exchanges).map(([ex, v]) => {
     const st = v.status || {};
-    const stateTxt = st.ok === false ? `<span class="state down">● error</span>` : st.empty ? `<span class="state" style="color:#f0b90b">● no ads</span>` : st.ok ? `<span class="state up">● live</span>` : `<span class="state muted">● –</span>`;
+    const stateTxt = st.ok === false ? `<span class="state down">● error</span>` : st.empty ? `<span class="state" style="color:var(--warn)">● no ads</span>` : st.ok ? `<span class="state up">● live</span>` : `<span class="state muted">● –</span>`;
     const b = v.BUY, s = v.SELL;
     const row = (label, cls, x) => `<div class="row"><span class="side ${cls}">${label}</span>
         <span><span class="big ${cls}">${fmt(x?.best)}</span><div class="muted small">best</div></span>
@@ -226,6 +234,7 @@ async function loadSettings() {
   const s = await api("/api/settings");
   state.settings = s;
   $("paused").checked = !!s.alerts_paused;
+  setIntervalUI(s.poll_interval);
   $("tgState").textContent = s.telegram_enabled ? "Telegram connected" : "Telegram not configured";
   if (!$("ruleEx").options.length) {
     $("ruleEx").innerHTML = ["any", ...s.exchanges].map((x) => `<option value="${esc(x)}">${x === "any" ? "Any exchange" : esc(x[0].toUpperCase() + x.slice(1))}</option>`).join("");
@@ -267,6 +276,41 @@ $("saveFilters").addEventListener("click", async () => {
 $("paused").addEventListener("change", (e) =>
   api("/api/settings", { method: "PUT", body: JSON.stringify({ alerts_paused: e.target.checked }) }));
 
+/* ---------- poll interval ---------- */
+const fmtSecs = (s) => (s < 60 ? `${s}s` : s % 60 === 0 ? `${s / 60} min` : `${s}s`);
+
+function setIntervalUI(secs) {
+  if (!secs) return;
+  secs = Math.round(secs);
+  state.interval = secs;
+  const sel = $("pollSel");
+  if (![...sel.options].some((o) => Number(o.value) === secs)) {
+    sel.add(new Option(fmtSecs(secs), secs));  // value set via .env that isn't a preset
+  }
+  sel.value = String(secs);
+  $("intervalNote").textContent = fmtSecs(secs);
+}
+
+$("pollSel").addEventListener("change", async (e) => {
+  const prev = state.interval;
+  try {
+    await api("/api/settings", { method: "PUT", body: JSON.stringify({ poll_interval: Number(e.target.value) }) });
+    setIntervalUI(Number(e.target.value));
+    liveLoop(true);
+  } catch (err) {
+    setIntervalUI(prev);
+    alert("Could not change interval: " + err.message);
+  }
+});
+
+// Page refresh follows the server's poll interval (never faster than 5s).
+let liveTimer = null;
+function liveLoop(now = false) {
+  clearTimeout(liveTimer);
+  const run = () => { refreshLatest(); refreshAds(); liveTimer = setTimeout(run, Math.max(5, state.interval || 5) * 1000); };
+  if (now) run(); else liveTimer = setTimeout(run, Math.max(5, state.interval || 5) * 1000);
+}
+
 /* ---------- nav highlight ---------- */
 const navLinks = [...document.querySelectorAll(".nav a")];
 const observer = new IntersectionObserver((entries) => {
@@ -277,11 +321,17 @@ const observer = new IntersectionObserver((entries) => {
 ["market", "history", "alerts", "filters"].forEach((id) => observer.observe($(id)));
 
 /* ---------- boot ---------- */
+$("logout").addEventListener("click", async () => {
+  await fetch("/api/logout", { method: "POST" }).catch(() => {});
+  location.replace("/login");
+});
+
 (async function init() {
+  api("/api/me").then((m) => { $("logout").hidden = !m.auth; }).catch(() => {});
   await loadSettings().catch(() => {});
   refreshLatest(); refreshAds(); refreshHistory();
   refreshRules().catch(() => {}); refreshEvents().catch(() => {});
-  setInterval(() => { refreshLatest(); refreshAds(); }, 5000);
+  liveLoop();
   setInterval(() => { if (state.range === "1h" || state.range === "24h") refreshHistory(); }, 15000);
   setInterval(() => { refreshRules().catch(() => {}); refreshEvents().catch(() => {}); }, 15000);
   setInterval(() => { loadSettings().catch(() => {}); }, 60000);

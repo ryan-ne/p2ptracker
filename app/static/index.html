@@ -27,9 +27,18 @@
   </nav>
   <div class="top-right">
     <span class="live"><span class="pulse"></span><span id="updated">connecting…</span></span>
+    <label class="interval" title="How often prices are fetched from the exchanges">
+      <span class="interval-label">Update every</span>
+      <select id="pollSel" aria-label="Exchange polling interval">
+        <option value="5">5s</option><option value="10">10s</option><option value="15">15s</option>
+        <option value="30">30s</option><option value="60">1 min</option><option value="120">2 min</option>
+        <option value="300">5 min</option><option value="600">10 min</option>
+      </select>
+    </label>
     <label class="toggle" title="Mute all alerts">
       <input type="checkbox" id="paused"><span class="track"><span class="knob"></span></span><span class="toggle-label">Pause alerts</span>
     </label>
+    <button class="logout" id="logout" hidden>Log out</button>
   </div>
 </header>
 
@@ -56,7 +65,7 @@
       <span>Advertiser</span><span>Price</span><span>Available / Order limit</span><span>Payment</span><span></span>
     </div>
     <div id="ads" class="ads"><div class="empty">Loading ads…</div></div>
-    <div class="muted small foot-note">Top ads after your filters · refreshes every 5s · prices in MMK per USDT</div>
+    <div class="muted small foot-note">Top ads after your filters · refreshes every <span id="intervalNote">5s</span> · prices in MMK per USDT</div>
   </section>
 
   <section class="cards" id="cards"></section>

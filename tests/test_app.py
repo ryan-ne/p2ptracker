@@ -115,6 +115,20 @@ def test_filters_applied(client):
     assert client.put("/api/settings", json={"filters": {"kraken": {}}}).status_code == 422
 
 
+def test_poll_interval_setting(client):
+    p = client.app_.state.poller
+    assert client.get("/api/settings").json()["poll_interval"] == 5
+    assert client.put("/api/settings", json={"poll_interval": 3}).status_code == 422      # min 5s
+    assert client.put("/api/settings", json={"poll_interval": 5000}).status_code == 422   # max 1h
+    assert client.put("/api/settings", json={"poll_interval": 30}).json() == {"ok": True}
+    assert p.interval == 30 and p._wake.is_set()        # running loop is woken to apply it now
+    assert client.get("/api/latest").json()["interval"] == 30
+    # persisted: a fresh poller on the same DB picks it up
+    p.interval = 5
+    client.portal.call(p.load_interval)
+    assert p.interval == 30
+
+
 def test_retention_rollup(client):
     db = client.app_.state.db
     old = (int(time.time()) // 3600 - 24 * 40) * 3600
@@ -127,12 +141,69 @@ def test_retention_rollup(client):
     assert pts == [[old, 4805.0, 4812.5]]  # hourly close + mean avg5
 
 
-def test_basic_auth(tmp_path):
-    s = Settings(db_path=str(tmp_path / "a.db"), dashboard_user="u", dashboard_pass="p", _env_file=None)
-    with TestClient(create_app(s, start_background=False)) as c:
+def auth_app(tmp_path, pw="p"):
+    s = Settings(db_path=str(tmp_path / "a.db"), dashboard_user="u", dashboard_pass=pw, _env_file=None)
+    return create_app(s, start_background=False)
+
+
+def test_login_flow(tmp_path):
+    with TestClient(auth_app(tmp_path), follow_redirects=False) as c:
+        # unauthenticated: pages redirect to login, API gets 401, public paths open
+        r = c.get("/?x=1")
+        assert r.status_code == 303 and r.headers["location"] == "/login?next=/%3Fx%3D1"
         assert c.get("/api/alerts").status_code == 401
         assert c.get("/healthz").status_code == 200
+        assert c.get("/login").status_code == 200
+        assert c.get("/static/style.css").status_code == 200
+
+        assert c.post("/api/login", json={"username": "u", "password": "x"}).status_code == 401
+        r = c.post("/api/login", json={"username": "u", "password": "p"})
+        assert r.status_code == 200
+        cookie = r.headers["set-cookie"]
+        assert "HttpOnly" in cookie and "samesite=lax" in cookie.lower()
+        assert c.get("/api/alerts").status_code == 200
+        assert c.get("/login").status_code == 303           # already signed in -> dashboard
+        assert c.get("/api/me").json() == {"auth": True, "user": "u"}
+
+        c.post("/api/logout")
+        assert c.get("/api/alerts").status_code == 401
+
+
+def test_tampered_or_stale_session_rejected(tmp_path):
+    with TestClient(auth_app(tmp_path)) as c:
+        c.post("/api/login", json={"username": "u", "password": "p"})
+        good = c.cookies.get("p2p_session")
+        c.cookies.set("p2p_session", good[:-4] + "AAAA")
+        assert c.get("/api/alerts").status_code == 401
+    # same DB (same secret) but password changed -> old session invalid
+    with TestClient(auth_app(tmp_path, pw="new")) as c:
+        c.cookies.set("p2p_session", good)
+        assert c.get("/api/alerts").status_code == 401
+
+
+def test_login_rate_limit(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.main.asyncio.sleep", _no_sleep)
+    with TestClient(auth_app(tmp_path)) as c:
+        for _ in range(10):
+            assert c.post("/api/login", json={"username": "u", "password": "x"}).status_code == 401
+        assert c.post("/api/login", json={"username": "u", "password": "p"}).status_code == 429
+
+
+async def _no_sleep(_):
+    return None
+
+
+def test_basic_auth_fallback(tmp_path):
+    with TestClient(auth_app(tmp_path)) as c:
         good = base64.b64encode(b"u:p").decode()
         bad = base64.b64encode(b"u:x").decode()
         assert c.get("/api/alerts", headers={"Authorization": f"Basic {good}"}).status_code == 200
         assert c.get("/api/alerts", headers={"Authorization": f"Basic {bad}"}).status_code == 401
+
+
+def test_no_auth_configured(tmp_path):
+    s = Settings(db_path=str(tmp_path / "n.db"), _env_file=None)
+    with TestClient(create_app(s, start_background=False), follow_redirects=False) as c:
+        assert c.get("/api/alerts").status_code == 200
+        assert c.get("/login").status_code == 303
+        assert c.get("/api/me").json()["auth"] is False

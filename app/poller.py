@@ -25,6 +25,14 @@ class LogNotifier:
         log.warning("ALERT (telegram disabled): %s", text)
 
 
+MIN_INTERVAL = 5.0
+MAX_INTERVAL = 3600.0
+
+
+def clamp_interval(seconds: float) -> float:
+    return float(min(MAX_INTERVAL, max(MIN_INTERVAL, float(seconds))))
+
+
 class Poller:
     def __init__(self, settings: Settings, db: Database, exchanges: list[Exchange],
                  notifier: Notifier, engine: AlertEngine | None = None):
@@ -41,16 +49,36 @@ class Poller:
         self.pay_methods_seen: dict[str, set[str]] = {e.name: set() for e in exchanges}
         self.top_ads: dict[str, dict[str, list[dict]]] = {e.name: {} for e in exchanges}  # ex -> side -> ads
         self.last_tick: int | None = None
+        self.interval: float = clamp_interval(settings.poll_interval)
+        self._wake = asyncio.Event()
+
+    async def load_interval(self) -> None:
+        """Dashboard-set interval (stored in DB) overrides POLL_INTERVAL from .env."""
+        saved = await self.db.get_setting("poll_interval")
+        if saved:
+            self.interval = clamp_interval(saved)
+
+    async def set_interval(self, seconds: float) -> float:
+        self.interval = clamp_interval(seconds)
+        await self.db.set_setting("poll_interval", self.interval)
+        self._wake.set()  # apply now instead of after the current (possibly long) sleep
+        log.info("poll interval set to %.0fs", self.interval)
+        return self.interval
 
     async def run(self) -> None:
+        await self.load_interval()
         while True:
             started = time.monotonic()
             try:
                 await self.tick()
             except Exception:
                 log.exception("poll tick failed")
-            elapsed = time.monotonic() - started
-            await asyncio.sleep(max(0.5, self.s.poll_interval - elapsed) + random.uniform(0, 0.3))
+            delay = max(0.5, self.interval - (time.monotonic() - started)) + random.uniform(0, 0.3)
+            self._wake.clear()
+            try:
+                await asyncio.wait_for(self._wake.wait(), timeout=delay)
+            except asyncio.TimeoutError:
+                pass
 
     async def tick(self) -> list[Rate]:
         now = int(time.time())

@@ -79,6 +79,14 @@ logged-in accounts with Myanmar KYC. Anonymous requests get a region-based fiat 
 Binance session cookies would work around this but is not supported: it puts a live session for
 your real account on the server.
 
+## Dashboard login & settings
+
+- With `DASHBOARD_USER`/`DASHBOARD_PASS` set, the dashboard shows a sign-in page and keeps you signed in
+  for 30 days (signed, HttpOnly cookie). Changing the password signs everyone out. Failed logins are
+  limited to 10 per 15 minutes per IP. Scripts can still use HTTP Basic auth (`curl -u user:pass`).
+- **Update every** (top bar) sets how often the exchanges are polled: 5 s minimum, up to 10 min. It
+  applies immediately and is saved, overriding `POLL_INTERVAL` from `.env`.
+
 ## Data & retention
 
 - `rate_snapshots`: one row per exchange/side per poll (~104k rows/day).

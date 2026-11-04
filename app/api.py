@@ -45,6 +45,7 @@ class ExchangeFilter(BaseModel):
 class SettingsIn(BaseModel):
     filters: dict[str, ExchangeFilter] | None = None
     alerts_paused: bool | None = None
+    poll_interval: float | None = Field(default=None, ge=5, le=3600)
 
 
 @router.get("/latest")
@@ -58,7 +59,7 @@ async def latest(request: Request):
     sells = [(s["SELL"]["best"], ex) for ex, s in p.latest.items() if "SELL" in s]
     return {
         "ts": p.last_tick,
-        "interval": request.app.state.settings.poll_interval,
+        "interval": p.interval,
         "exchanges": out,
         "best_buy": dict(zip(("price", "exchange"), min(buys))) if buys else None,
         "best_sell": dict(zip(("price", "exchange"), max(sells))) if sells else None,
@@ -151,6 +152,7 @@ async def get_settings(request: Request):
         "pay_methods_seen": {ex: sorted(v) for ex, v in p.pay_methods_seen.items()},
         "exchanges": request.app.state.settings.exchange_list,
         "telegram_enabled": request.app.state.bot is not None,
+        "poll_interval": p.interval,
     }
 
 
@@ -165,4 +167,6 @@ async def put_settings(body: SettingsIn, request: Request):
         await db.set_setting("filters", {k: v.model_dump() for k, v in body.filters.items()})
     if body.alerts_paused is not None:
         await db.set_setting("alerts_paused", body.alerts_paused)
+    if body.poll_interval is not None:
+        await request.app.state.poller.set_interval(body.poll_interval)
     return {"ok": True}

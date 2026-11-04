@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · MMK P2P Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fcd535'/%3E%3Cpath d='M6 22l7-7 5 4 8-10' fill='none' stroke='%23181a20' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 17l5-5 4 3 7-8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <span class="brand-name">MMK P2P <b>Tracker</b></span>
+  </div>
+</header>
+
+<main class="login-main">
+  <section class="login-hero" aria-hidden="true">
+    <h1>Track USDT/MMK P2P rates <span class="hl">in real time</span></h1>
+    <p class="muted">Live Bybit and Bitget ads, price history and instant Telegram alerts — all in one place.</p>
+    <ul class="login-points">
+      <li><span class="pt-icon up">▲</span><div><b>Live ad list</b><span class="muted">Best buy and sell prices every 5 seconds</span></div></li>
+      <li><span class="pt-icon">🔔</span><div><b>Price alerts</b><span class="muted">Telegram ping when your threshold is crossed</span></div></li>
+      <li><span class="pt-icon down">◆</span><div><b>History</b><span class="muted">Charts from the last hour to all time</span></div></li>
+    </ul>
+    <svg class="login-spark" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#fcd535" stop-opacity=".25"/><stop offset="1" stop-color="#fcd535" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M0 90 L40 80 L80 86 L120 60 L160 66 L200 44 L240 52 L280 30 L320 38 L360 18 L400 24 L400 120 L0 120 Z" fill="url(#g)"/>
+      <path d="M0 90 L40 80 L80 86 L120 60 L160 66 L200 44 L240 52 L280 30 L320 38 L360 18 L400 24" fill="none" stroke="#fcd535" stroke-width="2"/>
+    </svg>
+  </section>
+
+  <section class="login-card">
+    <h2>Sign in</h2>
+    <p class="muted small">Use the dashboard username and password from your server's <code>.env</code>.</p>
+    <div class="login-error" id="err" role="alert" hidden></div>
+    <form id="loginForm" novalidate>
+      <label class="field">
+        <span>Username</span>
+        <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <span class="pw-wrap">
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">Show</button>
+        </span>
+      </label>
+      <button type="submit" class="btn-primary btn-block" id="submitBtn">Sign in</button>
+    </form>
+    <p class="login-foot muted small">Session stays signed in for 30 days on this device.</p>
+  </section>
+</main>
+<script src="/static/login.js"></script>
+</body>
+</html>
