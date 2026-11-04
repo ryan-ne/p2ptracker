@@ -155,3 +155,18 @@ def test_binance_backs_off_after_rate_limit():
     ex = asyncio.run(go())
     assert len(calls) == 1                       # no further calls during the back-off
     assert ex.backoff_until - __import__("time").time() > 100
+
+
+def test_airtime_only_ads_dropped_real_binance_sell_case():
+    """Real Binance MMK SELL-side top ads (2026-11-04): two airtime-top-up ads at 5,150 / 5,000."""
+    from app.config import Settings
+    from app.exchanges import Ad, drop_non_cash
+    ads = [Ad(5150, pay_methods=["Airtime Mobile Top-Up"]), Ad(5000, pay_methods=["Airtime Mobile Top-Up"]),
+           Ad(4850, pay_methods=["KBZPay"]), Ad(4850, pay_methods=["WavePay"]),
+           Ad(4845, pay_methods=["KBZPay"]), Ad(4844, pay_methods=["KBZPay"])]
+    kept = drop_non_cash(ads, Settings(_env_file=None).excluded_pay_methods.split(","))
+    assert compute_rate("binance", SELL, kept).best == 4850
+    # an ad that ALSO takes real money stays; an ad with no listed methods stays
+    mixed = [Ad(5100, pay_methods=["Airtime Mobile Top-Up", "KBZPay"]), Ad(4800, pay_methods=[])]
+    assert [a.price for a in drop_non_cash(mixed, ["airtime mobile top-up"])] == [5100, 4800]
+    assert drop_non_cash(ads, []) == ads

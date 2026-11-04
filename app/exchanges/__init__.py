@@ -1,6 +1,7 @@
 import httpx
 
-from .base import BUY, SELL, SIDES, Ad, Exchange, ExchangeError, Filters, Rate, apply_filters, compute_rate
+from .base import (BUY, SELL, SIDES, Ad, Exchange, ExchangeError, Filters, Rate, apply_filters, compute_rate,
+                   drop_non_cash)
 from .binance import Binance
 from .bitget import Bitget
 from .bybit import Bybit
@@ -18,4 +19,4 @@ def build_exchanges(names: list[str], client: httpx.AsyncClient, rows: int,
 
 
 __all__ = ["BUY", "SELL", "SIDES", "Ad", "Exchange", "ExchangeError", "Filters", "Rate",
-           "apply_filters", "compute_rate", "build_exchanges", "REGISTRY"]
+           "apply_filters", "compute_rate", "drop_non_cash", "build_exchanges", "REGISTRY"]

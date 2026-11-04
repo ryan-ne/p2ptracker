@@ -71,6 +71,15 @@ class Exchange:
             raise ExchangeError(f"{self.name}: {type(e).__name__}: {e}") from e
 
 
+def drop_non_cash(ads: list[Ad], excluded: list[str]) -> list[Ad]:
+    """Drop ads whose ONLY payment methods are non-cash ones (e.g. airtime top-up). Those trade at a
+    premium because the payment isn't real money, and would otherwise show up as the "best" price."""
+    bad = {e.strip().lower() for e in excluded if e.strip()}
+    if not bad:
+        return ads
+    return [a for a in ads if not a.pay_methods or any(p.lower() not in bad for p in a.pay_methods)]
+
+
 def apply_filters(ads: list[Ad], f: Filters) -> list[Ad]:
     wanted = {p.lower() for p in f.pay_methods}
     out = []

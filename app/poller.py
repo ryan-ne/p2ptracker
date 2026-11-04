@@ -11,7 +11,7 @@ from typing import Protocol
 from .alerts import AlertEngine, format_alert
 from .config import Settings
 from .db import Database
-from .exchanges import SIDES, Exchange, Filters, Rate, apply_filters, compute_rate
+from .exchanges import SIDES, Exchange, Filters, Rate, apply_filters, compute_rate, drop_non_cash
 
 log = logging.getLogger("poller")
 
@@ -96,7 +96,8 @@ class Poller:
                 continue
             for ad in res:
                 self.pay_methods_seen[ex.name].update(ad.pay_methods)
-            ads = apply_filters(res, Filters.from_dict(filters_cfg.get(ex.name)))
+            ads = drop_non_cash(res, self.s.excluded_pay_methods.split(","))
+            ads = apply_filters(ads, Filters.from_dict(filters_cfg.get(ex.name)))
             ranked = sorted((a for a in ads if a.price > 0), key=lambda a: a.price, reverse=(side == "SELL"))
             self.top_ads[ex.name][side] = [
                 {"price": a.price, "merchant": a.merchant, "available": a.available, "min": a.min_amount,

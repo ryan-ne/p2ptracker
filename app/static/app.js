@@ -75,7 +75,6 @@ async function refreshAds() {
   if (state.ex) q.set("exchange", state.ex);
   let d;
   try { d = await api("/api/ads?" + q); } catch { return; }
-  const isBuy = state.side === "BUY";
   if (!d.ads.length) {
     $("ads").innerHTML = `<div class="empty">No ads match right now. Check the exchange status or loosen your filters.</div>`;
     return;
@@ -90,7 +89,6 @@ async function refreshAds() {
       <div class="limits"><div><span class="k">Available</span><span class="num">${fmt(a.available)} USDT</span></div>
         <div><span class="k">Limit</span><span class="num">${fmt(a.min, 0)} – ${a.max == null ? "∞" : fmt(a.max, 0)} MMK</span></div></div>
       <div class="pms">${pms || '<span class="muted">—</span>'}</div>
-      <div class="act"><button class="${isBuy ? "buy" : "sell"}" data-price="${a.price}" data-ex="${esc(a.exchange)}" title="Create an alert at this price">🔔 Alert</button></div>
     </div>`;
   }).join("");
 }
@@ -102,16 +100,6 @@ $("sideTabs").addEventListener("click", (e) => {
 $("exChips").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   state.ex = b.dataset.ex; setSeg($("exChips"), "ex", state.ex); refreshAds();
-});
-$("ads").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-price]"); if (!b) return;
-  $("ruleEx").value = b.dataset.ex;
-  $("ruleSide").value = state.side;
-  $("ruleOp").value = state.side === "BUY" ? "<=" : ">=";
-  $("ruleThreshold").value = b.dataset.price;
-  $("alerts").scrollIntoView();
-  $("ruleThreshold").focus();
-  setMsg("ruleMsg", "Prefilled from ad — adjust the price and press Add alert.");
 });
 
 /* ---------- history chart ---------- */
@@ -242,7 +230,7 @@ async function refreshRules() {
       <span class="row-btns">
         <button class="btn-ghost" data-act="toggle" data-id="${r.id}" data-en="${r.enabled ? 0 : 1}">${r.enabled ? "Pause" : "Resume"}</button>
         <button class="btn-danger" data-act="del" data-id="${r.id}">Delete</button></span></div>`).join("")
-    || `<div class="empty">No alerts yet. Use the form, or 🔔 on any ad.</div>`);
+    || `<div class="empty">No alerts yet. Add one with the form above.</div>`);
 }
 
 const PATTERN_LABEL = { spike: "Sudden spike", drop: "Sudden drop", trend_up: "Rising run", trend_down: "Falling run" };

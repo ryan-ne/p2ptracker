@@ -121,7 +121,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .chips button { background: transparent; color: var(--muted); border-color: var(--border); border-radius: 999px; padding: 5px 14px; text-transform: capitalize; }
 .chips button.on { color: var(--accent); border-color: var(--accent); }
 
-.ad-head, .ad { display: grid; grid-template-columns: 2.2fr 1.3fr 2.2fr 1.6fr 110px; gap: 16px; align-items: center; }
+.ad-head, .ad { display: grid; grid-template-columns: 2.2fr 1.3fr 2.2fr 1.6fr; gap: 16px; align-items: center; }
 .ad-head { color: var(--muted); font-size: 12px; padding: 0 12px 10px; border-bottom: 1px solid var(--border); }
 .ad { padding: 18px 12px; border-bottom: 1px solid var(--border); border-radius: 8px; transition: background .12s; }
 .ad:hover { background: var(--panel-2); }
@@ -142,11 +142,6 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pms { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
 .pm { display: flex; align-items: center; gap: 6px; color: var(--text); }
 .pm::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: var(--pm, var(--accent)); flex: none; }
-.ad .act { text-align: right; }
-.ad .act button { width: 100%; font-weight: 600; color: #fff; border: 0; }
-.ad .act button.buy { background: var(--buy); }
-.ad .act button.sell { background: var(--down); }
-.ad .act button:hover { filter: brightness(1.1); }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 .foot-note { margin-top: 12px; }
 
@@ -204,10 +199,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .nav { display: none; }
   .tk-ex { display: none; }
   .ad-head { display: none; }
-  .ad { grid-template-columns: 1fr auto; grid-template-areas: "adv price" "lim lim" "pm act"; gap: 10px; }
+  .ad { grid-template-columns: 1fr auto; grid-template-areas: "adv price" "lim lim" "pm pm"; gap: 10px; }
   .ad .adv { grid-area: adv; } .ad .pr { grid-area: price; text-align: right; }
   .ad .limits { grid-area: lim; } .ad .pms { grid-area: pm; flex-direction: row; flex-wrap: wrap; gap: 4px 10px; }
-  .ad .act { grid-area: act; } .ad .act button { width: auto; }
 }
 @media (max-width: 600px) {
   .topbar { padding: 0 16px; gap: 12px; height: 56px; }

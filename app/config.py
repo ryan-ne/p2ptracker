@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Which exchanges to poll. Binance only shows MMK ads to Myanmar-KYC accounts, so it needs a
     # read-only API key from such an account (below); it is added automatically when the key is set.
     exchanges: str = "bybit,bitget"
+    # Ads paying ONLY with these (non-cash) methods are ignored on every exchange: they trade at a
+    # premium (e.g. phone credit) and would otherwise show up as the "best" price.
+    excluded_pay_methods: str = "Airtime Mobile Top-Up,Mobile Top-Up,Airtime,Gift Card"
     binance_api_key: str = ""
     binance_api_secret: str = ""
 

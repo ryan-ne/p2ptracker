@@ -143,6 +143,11 @@ Dashboard → *Ad filters*: per exchange, a trade amount in MMK (ad must accept 
 (ad must offer at least one). Bybit only returns numeric payment IDs; they're translated via
 `PAYMENT_NAMES` in `app/exchanges/bybit.py`. A new method shows up as `#<id>` — add it to that map.
 
+Before your filters, ads that pay **only** with non-cash methods (`EXCLUDED_PAY_METHODS`, default
+airtime/mobile top-up and gift cards) are always ignored: they trade at a premium — e.g. Binance
+"buy USDT" ads paying in phone credit at 5,150 while cash ads paid ~4,850 — and would otherwise be
+shown as the best price.
+
 ## API
 
 `GET /api/latest` · `GET /api/history?range=1h|6h|24h|7d|30d|90d|1y|all&exchange=&side=` (or `from`/`to` epoch) ·
