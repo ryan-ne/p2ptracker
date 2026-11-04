@@ -65,6 +65,18 @@ async def latest(request: Request):
     }
 
 
+@router.get("/ads")
+async def ads(request: Request, side: Literal["BUY", "SELL"] = "BUY", exchange: str | None = None,
+              limit: int = Query(20, ge=1, le=50)):
+    """Current top ads (after filters) merged across exchanges, best price first for the user's side."""
+    p = request.app.state.poller
+    rows = [{**ad, "exchange": ex}
+            for ex, sides in p.top_ads.items() if exchange in (None, "", ex)
+            for ad in sides.get(side, [])]
+    rows.sort(key=lambda r: r["price"], reverse=(side == "SELL"))
+    return {"ts": p.last_tick, "side": side, "ads": rows[:limit]}
+
+
 @router.get("/history")
 async def history(
     request: Request,

@@ -3,72 +3,110 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>USDT/MMK P2P Tracker</title>
+  <title>MMK P2P Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fcd535'/%3E%3Cpath d='M6 22l7-7 5 4 8-10' fill='none' stroke='%23181a20' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
-<header>
-  <div>
-    <h1>USDT / MMK P2P</h1>
-    <div class="muted" id="updated">waiting for first poll…</div>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 17l5-5 4 3 7-8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <span class="brand-name">MMK P2P <b>Tracker</b></span>
   </div>
-  <label class="switch" title="Mute all alerts">
-    <input type="checkbox" id="paused"> <span>Pause alerts</span>
-  </label>
+  <nav class="nav">
+    <a href="#market" class="active">P2P</a>
+    <a href="#history">Chart</a>
+    <a href="#alerts">Alerts</a>
+    <a href="#filters">Filters</a>
+  </nav>
+  <div class="top-right">
+    <span class="live"><span class="pulse"></span><span id="updated">connecting…</span></span>
+    <label class="toggle" title="Mute all alerts">
+      <input type="checkbox" id="paused"><span class="track"><span class="knob"></span></span><span class="toggle-label">Pause alerts</span>
+    </label>
+  </div>
 </header>
 
+<section class="ticker">
+  <div class="pair"><span class="pair-name">USDT<span class="muted">/MMK</span></span><span class="muted small">P2P · Bybit + Bitget</span></div>
+  <div class="tk"><span class="tk-label">Cheapest buy</span><span class="tk-val up" id="bestBuy">–</span><span class="tk-sub" id="bestBuyEx"></span></div>
+  <div class="tk"><span class="tk-label">Best sell</span><span class="tk-val down" id="bestSell">–</span><span class="tk-sub" id="bestSellEx"></span></div>
+  <div class="tk"><span class="tk-label">Cross-exchange gap</span><span class="tk-val" id="gap">–</span><span class="tk-sub">best sell − cheapest buy</span></div>
+  <div class="tk-ex" id="exTicker"></div>
+</section>
+
 <main>
-  <section class="summary">
-    <div class="stat"><div class="label">Cheapest to buy USDT</div><div class="value" id="bestBuy">–</div><div class="muted" id="bestBuyEx"></div></div>
-    <div class="stat"><div class="label">Best to sell USDT</div><div class="value" id="bestSell">–</div><div class="muted" id="bestSellEx"></div></div>
-    <div class="stat"><div class="label">Cross-exchange gap</div><div class="value" id="gap">–</div><div class="muted">best sell − cheapest buy</div></div>
+  <section id="market" class="panel p2p">
+    <div class="p2p-bar">
+      <div class="side-tabs" id="sideTabs">
+        <button data-side="BUY" class="on buy">Buy</button>
+        <button data-side="SELL" class="sell">Sell</button>
+      </div>
+      <div class="asset">USDT <span class="muted">with MMK</span></div>
+      <div class="chips" id="exChips"><button data-ex="" class="on">All exchanges</button></div>
+    </div>
+
+    <div class="ad-head">
+      <span>Advertiser</span><span>Price</span><span>Available / Order limit</span><span>Payment</span><span></span>
+    </div>
+    <div id="ads" class="ads"><div class="empty">Loading ads…</div></div>
+    <div class="muted small foot-note">Top ads after your filters · refreshes every 5s · prices in MMK per USDT</div>
   </section>
 
   <section class="cards" id="cards"></section>
 
-  <section class="panel">
+  <section id="history" class="panel">
     <div class="panel-head">
-      <h2>History</h2>
+      <h2>Price history</h2>
       <div class="controls">
         <div class="seg" id="rangeSeg">
-          <button data-v="1h">1h</button><button data-v="24h" class="on">24h</button><button data-v="7d">7d</button>
-          <button data-v="30d">30d</button><button data-v="1y">1y</button><button data-v="all">All</button>
+          <button data-v="1h">1H</button><button data-v="24h" class="on">24H</button><button data-v="7d">7D</button>
+          <button data-v="30d">30D</button><button data-v="1y">1Y</button><button data-v="all">All</button>
         </div>
-        <select id="sideSel"><option value="">Buy + Sell</option><option value="BUY">Buy only</option><option value="SELL">Sell only</option></select>
-        <select id="metricSel"><option value="best">Best price</option><option value="avg5">Avg top 5</option></select>
+        <div class="seg" id="sideSeg">
+          <button data-v="" class="on">Both</button><button data-v="BUY">Buy</button><button data-v="SELL">Sell</button>
+        </div>
+        <div class="seg" id="metricSeg">
+          <button data-v="best" class="on">Best</button><button data-v="avg5">Avg 5</button>
+        </div>
       </div>
     </div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
-    <div class="muted small">Solid = BUY (you buy USDT) · dashed = SELL (you sell USDT). Click legend to hide a line.</div>
+    <div class="muted small">Solid = Buy (you buy USDT) · dashed = Sell (you sell USDT) · click legend to hide a line</div>
   </section>
 
-  <section class="grid2">
+  <section id="alerts" class="grid2">
     <div class="panel">
-      <h2>Alert rules</h2>
+      <div class="panel-head"><h2>Price alerts</h2><span class="muted small" id="tgState"></span></div>
       <form id="ruleForm" class="rule-form">
-        <select name="exchange" id="ruleEx"></select>
-        <select name="side"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
-        <select name="metric"><option value="best">best</option><option value="avg5">avg5</option></select>
-        <select name="op"><option value="<=">≤</option><option value=">=">≥</option></select>
-        <input name="threshold" type="number" step="any" min="0" placeholder="price MMK" required>
-        <input name="cooldown_sec" type="number" min="0" value="300" title="cooldown seconds">
-        <button type="submit">Add</button>
+        <label><span>Exchange</span><select name="exchange" id="ruleEx"></select></label>
+        <label><span>Side</span><select name="side" id="ruleSide"><option value="BUY">Buy</option><option value="SELL">Sell</option></select></label>
+        <label><span>Metric</span><select name="metric"><option value="best">Best</option><option value="avg5">Avg 5</option></select></label>
+        <label><span>When</span><select name="op" id="ruleOp"><option value="<=">≤ at or below</option><option value=">=">≥ at or above</option></select></label>
+        <label class="grow"><span>Price (MMK)</span><input name="threshold" id="ruleThreshold" type="number" step="any" min="0" placeholder="e.g. 4,800" required></label>
+        <label><span>Cooldown (s)</span><input name="cooldown_sec" type="number" min="0" value="300"></label>
+        <button type="submit" class="btn-primary">Add alert</button>
       </form>
-      <div class="muted small" id="ruleMsg"></div>
-      <table class="tbl"><thead><tr><th>#</th><th>Rule</th><th>Last fired</th><th></th></tr></thead><tbody id="rules"></tbody></table>
+      <div class="msg" id="ruleMsg"></div>
+      <div class="table" id="rules"></div>
     </div>
     <div class="panel">
-      <h2>Recent alerts</h2>
-      <table class="tbl"><thead><tr><th>Time</th><th>Exchange</th><th>Price</th><th>Rule</th></tr></thead><tbody id="events"></tbody></table>
+      <div class="panel-head"><h2>Recent alerts</h2></div>
+      <div class="table" id="events"></div>
     </div>
   </section>
 
-  <section class="panel">
-    <h2>Ad filters</h2>
-    <p class="muted small">Only ads matching these filters count toward best / avg5. Leave empty for all ads. Payment methods appear as they are seen in polls.</p>
-    <div id="filters" class="filters"></div>
-    <button id="saveFilters">Save filters</button> <span class="muted small" id="filterMsg"></span>
+  <section id="filters" class="panel">
+    <div class="panel-head"><h2>Ad filters</h2></div>
+    <p class="muted small">Only ads matching these filters count toward the ad list, best price and avg 5. Leave empty for all ads.</p>
+    <div id="filters-body" class="filters"></div>
+    <div class="row-actions"><button id="saveFilters" class="btn-primary">Save filters</button><span class="msg" id="filterMsg"></span></div>
   </section>
 </main>
 <script src="/static/app.js"></script>

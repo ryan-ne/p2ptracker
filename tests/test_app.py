@@ -65,6 +65,15 @@ def test_poll_latest_history(client):
     assert client.get("/api/history?range=nope").status_code == 400
 
 
+def test_ads_merged_and_sorted(client):
+    tick(client)
+    buy = client.get("/api/ads?side=BUY").json()["ads"]
+    assert [a["price"] for a in buy] == [4835, 4840, 4850, 4870, 4875]
+    assert buy[0]["exchange"] == "binance" and buy[0]["pay_methods"] == ["KBZPay"]
+    sell = client.get("/api/ads?side=SELL&exchange=bybit").json()["ads"]
+    assert [a["price"] for a in sell] == [4826, 4820] and {a["exchange"] for a in sell} == {"bybit"}
+
+
 def test_exchange_down_alert_once(client):
     for _ in range(4):
         tick(client)

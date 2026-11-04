@@ -39,6 +39,7 @@ class Poller:
             for e in exchanges
         }
         self.pay_methods_seen: dict[str, set[str]] = {e.name: set() for e in exchanges}
+        self.top_ads: dict[str, dict[str, list[dict]]] = {e.name: {} for e in exchanges}  # ex -> side -> ads
         self.last_tick: int | None = None
 
     async def run(self) -> None:
@@ -63,10 +64,17 @@ class Poller:
         for (ex, side), res in zip(jobs, results):
             if isinstance(res, BaseException):
                 errors[ex.name] = str(res)[:300]
+                self.top_ads[ex.name].pop(side, None)  # don't show stale ads as live
                 continue
             for ad in res:
                 self.pay_methods_seen[ex.name].update(ad.pay_methods)
             ads = apply_filters(res, Filters.from_dict(filters_cfg.get(ex.name)))
+            ranked = sorted((a for a in ads if a.price > 0), key=lambda a: a.price, reverse=(side == "SELL"))
+            self.top_ads[ex.name][side] = [
+                {"price": a.price, "merchant": a.merchant, "available": a.available, "min": a.min_amount,
+                 "max": a.max_amount if a.max_amount != float("inf") else None, "pay_methods": a.pay_methods}
+                for a in ranked[:10]
+            ]
             rate = compute_rate(ex.name, side, ads, self.s.top_n)
             if rate is None:
                 empty[ex.name] = True
