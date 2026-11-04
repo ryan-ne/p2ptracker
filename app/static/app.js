@@ -338,7 +338,10 @@ $("logout").addEventListener("click", async () => {
 });
 
 (async function init() {
-  api("/api/me").then((m) => { $("logout").hidden = !m.auth; }).catch(() => {});
+  api("/api/me").then((m) => {
+    $("logout").hidden = !m.auth;
+    if (m.user) { $("whoami").textContent = m.user; $("whoami").hidden = false; }
+  }).catch(() => {});
   await loadSettings().catch(() => {});
   refreshLatest(); refreshAds(); refreshHistory();
   refreshRules().catch(() => {}); refreshEvents().catch(() => {});

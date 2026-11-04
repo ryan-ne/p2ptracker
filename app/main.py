@@ -38,7 +38,6 @@ class LoginIn(BaseModel):
 
 def create_app(settings: Settings | None = None, start_background: bool = True) -> FastAPI:
     settings = settings or get_settings()
-    auth_on = bool(settings.dashboard_user and settings.dashboard_pass)
     limiter = auth.LoginLimiter()
 
     @asynccontextmanager
@@ -85,8 +84,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 tasks.append(asyncio.create_task(app.state.pattern_agent.run(), name="patterns"))
             await poller.load_interval()
             log.info("polling %s every %.0fs", settings.exchange_list, poller.interval)
-            if not auth_on:
-                log.warning("dashboard has NO password (DASHBOARD_USER/DASHBOARD_PASS empty) - "
+            if not env_on and await db.count_users() == 0:
+                log.warning("dashboard has NO login (no DASHBOARD_USER/PASS and no users added) - "
                             "do not expose it publicly")
         try:
             yield
@@ -103,29 +102,57 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
 
     app = FastAPI(title="P2P USDT/MMK Tracker", lifespan=lifespan)
 
-    def sign_key(request: Request) -> str:
-        # Password is part of the key: changing DASHBOARD_PASS invalidates existing sessions.
-        return f"{request.app.state.session_secret}:{settings.dashboard_pass}"
+    env_on = bool(settings.dashboard_user and settings.dashboard_pass)
 
-    def authed(request: Request) -> bool:
+    async def auth_on(request: Request) -> bool:
+        """Login is required once any account exists: the .env one or users added with `python -m app.users`."""
+        return env_on or await request.app.state.db.count_users() > 0
+
+    async def user_key(request: Request, username: str) -> str | None:
+        # Per-user signing key: server secret + that user's password material, so a password change
+        # or removal ends only that user's sessions. (.env user keeps the pre-multi-user key format.)
+        secret = request.app.state.session_secret
+        if env_on and secrets.compare_digest(username, settings.dashboard_user):
+            return f"{secret}:{settings.dashboard_pass}"
+        u = await request.app.state.db.get_user(username)
+        return f"{secret}:{u['password_hash']}" if u and u["username"] == username else None
+
+    async def verify_credentials(request: Request, username: str, password: str) -> str | None:
+        if env_on and auth.check_credentials(username, password, settings.dashboard_user, settings.dashboard_pass):
+            return settings.dashboard_user
+        name = username.strip().lower()
+        u = await request.app.state.db.get_user(name) if auth.USERNAME_RE.match(name) else None
+        if u is None:
+            await asyncio.to_thread(auth.burn_time, password)   # same timing as a real check
+            return None
+        ok = await asyncio.to_thread(auth.check_password, password, u["password_hash"])
+        return u["username"] if ok else None
+
+    async def current_user(request: Request) -> str | None:
         token = request.cookies.get(auth.COOKIE)
-        if token and auth.verify_token(token, settings.dashboard_user, sign_key(request)):
-            return True
+        if token and (name := auth.token_user(token)):
+            key = await user_key(request, name)
+            if key and auth.verify_token(token, name, key):
+                return name
         # Basic auth is only for scripts (curl -u). Browsers that signed in via the old Basic popup keep
-        # resending those credentials, which would make Log out impossible — so ignore Basic from browsers
+        # resending those credentials, which would make Log out impossible - so ignore Basic from browsers
         # (they always send Sec-Fetch-* headers; curl and other scripts don't).
         if any(h in request.headers for h in ("sec-fetch-site", "sec-fetch-mode")):
-            return False
-        return auth.basic_ok(request.headers.get("authorization", ""), settings.dashboard_user, settings.dashboard_pass)
+            return None
+        creds = auth.parse_basic(request.headers.get("authorization", ""))
+        return await verify_credentials(request, *creds) if creds else None
 
     @app.middleware("http")
     async def require_login(request: Request, call_next):
         path = request.url.path
-        if auth_on and not auth.is_public(path) and not authed(request):
-            if path.startswith("/api/"):
-                return JSONResponse({"detail": "login required"}, 401)
-            nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
-            return RedirectResponse(f"/login?next={quote(nxt)}", 303)
+        request.state.user = None
+        if not auth.is_public(path) and await auth_on(request):
+            request.state.user = await current_user(request)
+            if request.state.user is None:
+                if path.startswith("/api/"):
+                    return JSONResponse({"detail": "login required"}, 401)
+                nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+                return RedirectResponse(f"/login?next={quote(nxt)}", 303)
         resp = await call_next(request)
         if path.startswith("/static/"):
             # Revalidate (cheap 304 via ETag) so a deploy never mixes old JS/CSS with new HTML.
@@ -141,24 +168,25 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
 
     @app.get("/login", include_in_schema=False)
     async def login_page(request: Request):
-        if not auth_on or authed(request):
+        if not await auth_on(request) or await current_user(request):
             return RedirectResponse("/", 303)
         return FileResponse(STATIC / "login.html", headers={"Cache-Control": "no-cache"})
 
     @app.post("/api/login", include_in_schema=False)
     async def login(body: LoginIn, request: Request):
-        if not auth_on:
+        if not await auth_on(request):
             return {"ok": True}
         key = auth.client_key(request)
         if limiter.blocked(key):
             return JSONResponse({"detail": "Too many attempts. Try again in 15 minutes."}, 429)
-        if not auth.check_credentials(body.username, body.password, settings.dashboard_user, settings.dashboard_pass):
+        user = await verify_credentials(request, body.username, body.password)
+        if user is None:
             limiter.fail(key)
             await asyncio.sleep(0.5)  # slow down guessing
             return JSONResponse({"detail": "Incorrect username or password."}, 401)
         limiter.reset(key)
-        resp = JSONResponse({"ok": True})
-        resp.set_cookie(auth.COOKIE, auth.make_token(settings.dashboard_user, sign_key(request)),
+        resp = JSONResponse({"ok": True, "user": user})
+        resp.set_cookie(auth.COOKIE, auth.make_token(user, await user_key(request, user)),
                         max_age=auth.SESSION_TTL, httponly=True, samesite="lax", secure=auth.is_https(request))
         return resp
 
@@ -170,8 +198,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return resp
 
     @app.get("/api/me", include_in_schema=False)
-    async def me():
-        return {"auth": auth_on, "user": settings.dashboard_user if auth_on else None}
+    async def me(request: Request):
+        return {"auth": await auth_on(request), "user": request.state.user}
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz(request: Request):

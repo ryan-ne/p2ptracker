@@ -6,6 +6,7 @@ import base64
 import binascii
 import hashlib
 import hmac
+import re
 import secrets
 import time
 from collections import defaultdict, deque
@@ -21,19 +22,61 @@ MAX_FAILS = 10
 FAIL_WINDOW = 15 * 60
 
 
-def make_token(user: str, secret: str, now: int | None = None) -> str:
+USERNAME_RE = re.compile(r"^[a-z0-9._-]{2,32}$")
+MIN_PASSWORD = 8
+
+# scrypt parameters (~50 ms per hash): slow enough to resist guessing, fast enough for logins.
+_N, _R, _P = 2 ** 14, 8, 1
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    h = hashlib.scrypt(password.encode(), salt=salt, n=_N, r=_R, p=_P, dklen=32)
+    return f"scrypt${_N}${_R}${_P}${salt.hex()}${h.hex()}"
+
+
+def check_password(password: str, stored: str) -> bool:
+    try:
+        algo, n, r, p, salt, want = stored.split("$")
+        got = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=int(n), r=int(r), p=int(p),
+                             dklen=len(want) // 2)
+    except (ValueError, TypeError):
+        return False
+    return algo == "scrypt" and hmac.compare_digest(got.hex(), want)
+
+
+# Spent on unknown usernames so a login takes the same time whether or not the user exists.
+_DUMMY_HASH = hash_password(secrets.token_hex(8))
+
+
+def burn_time(password: str) -> None:
+    check_password(password, _DUMMY_HASH)
+
+
+def make_token(user: str, key: str, now: int | None = None) -> str:
+    """`key` is per user (server secret + that user's password material), so a password change or
+    user removal invalidates their sessions without touching anyone else's."""
     exp = (now or int(time.time())) + SESSION_TTL
     payload = f"{user}|{exp}"
-    sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(key.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return base64.urlsafe_b64encode(f"{payload}|{sig}".encode()).decode()
 
 
-def verify_token(token: str, user: str, secret: str, now: int | None = None) -> bool:
+def token_user(token: str) -> str | None:
+    """Unverified username from a token — only used to look up which key to verify it with."""
+    try:
+        user, _exp, _sig = base64.urlsafe_b64decode(token.encode()).decode().rsplit("|", 2)
+        return user
+    except (ValueError, binascii.Error, UnicodeDecodeError):
+        return None
+
+
+def verify_token(token: str, user: str, key: str, now: int | None = None) -> bool:
     try:
         tok_user, exp, sig = base64.urlsafe_b64decode(token.encode()).decode().rsplit("|", 2)
     except (ValueError, binascii.Error, UnicodeDecodeError):
         return False
-    expected = hmac.new(secret.encode(), f"{tok_user}|{exp}".encode(), hashlib.sha256).hexdigest()
+    expected = hmac.new(key.encode(), f"{tok_user}|{exp}".encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expected) or not hmac.compare_digest(tok_user, user):
         return False
     return exp.isdigit() and int(exp) > (now or int(time.time()))
@@ -43,14 +86,14 @@ def check_credentials(user: str, pw: str, want_user: str, want_pw: str) -> bool:
     return secrets.compare_digest(user, want_user) & secrets.compare_digest(pw, want_pw)
 
 
-def basic_ok(header: str, want_user: str, want_pw: str) -> bool:
+def parse_basic(header: str) -> tuple[str, str] | None:
     if not header.lower().startswith("basic "):
-        return False
+        return None
     try:
-        user, _, pw = base64.b64decode(header[6:]).decode().partition(":")
+        user, sep, pw = base64.b64decode(header[6:]).decode().partition(":")
     except (binascii.Error, UnicodeDecodeError):
-        return False
-    return check_credentials(user, pw, want_user, want_pw)
+        return None
+    return (user, pw) if sep else None
 
 
 def is_public(path: str) -> bool:

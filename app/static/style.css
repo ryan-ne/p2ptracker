@@ -285,3 +285,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* ---------- pattern tag ---------- */
 .pattern-tag { display: inline-block; font-size: 10px; font-weight: 600; color: var(--accent); border: 1px solid rgba(252,213,53,.4);
   border-radius: 4px; padding: 0 5px; margin-right: 2px; }
+
+/* ---------- signed-in user ---------- */
+.whoami { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.whoami::before { content: ""; width: 22px; height: 22px; border-radius: 50%; background: var(--panel-2);
+  border: 1px solid var(--line-strong); }
+.whoami[hidden] { display: none; }
+@media (max-width: 600px) { .whoami { display: none; } }

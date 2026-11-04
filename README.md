@@ -87,6 +87,23 @@ your real account on the server.
 - **Update every** (top bar) sets how often the exchanges are polled: 5 s minimum, up to 10 min. It
   applies immediately and is saved, overriding `POLL_INTERVAL` from `.env`.
 
+## Users
+
+Everyone who signs in has the same access (alerts, filters and settings are shared). Manage
+accounts on the server; changes apply immediately, no restart:
+
+```bash
+docker compose exec tracker python -m app.users add alice            # asks for a password (min 8 chars)
+docker compose exec tracker python -m app.users add bob --generate   # prints a random password
+docker compose exec tracker python -m app.users list
+docker compose exec tracker python -m app.users passwd alice         # also signs alice out everywhere
+docker compose exec tracker python -m app.users remove bob           # signs bob out everywhere
+```
+
+Usernames are case-insensitive. The `DASHBOARD_USER`/`DASHBOARD_PASS` account from `.env` keeps
+working alongside them (remove it from `.env` once you have your own user, if you like). Login is
+required as soon as either exists. Passwords are stored as salted scrypt hashes.
+
 ## Pattern agent (sudden moves → group chat)
 
 Every `PATTERN_INTERVAL` seconds (default 60) the agent turns the last hour of stored best prices into

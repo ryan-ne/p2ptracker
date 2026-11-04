@@ -71,6 +71,12 @@ CREATE TABLE IF NOT EXISTS pattern_events (
 );
 CREATE INDEX IF NOT EXISTS ix_pattern_ts ON pattern_events(ts);
 
+CREATE TABLE IF NOT EXISTS users (
+    username      TEXT PRIMARY KEY,      -- stored lower-case
+    password_hash TEXT NOT NULL,         -- scrypt$n$r$p$salt$hash
+    created_at    INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -219,6 +225,37 @@ class Database:
     async def list_pattern_events(self, limit: int = 50) -> list[dict]:
         cur = await self.conn.execute("SELECT * FROM pattern_events ORDER BY ts DESC, id DESC LIMIT ?", (limit,))
         return [dict(r) for r in await cur.fetchall()]
+
+    # ---- dashboard users -------------------------------------------------
+    async def get_user(self, username: str) -> dict | None:
+        cur = await self.conn.execute("SELECT * FROM users WHERE username = ?", (username.lower(),))
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def list_users(self) -> list[dict]:
+        cur = await self.conn.execute("SELECT username, created_at FROM users ORDER BY username")
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def count_users(self) -> int:
+        return (await (await self.conn.execute("SELECT COUNT(*) FROM users")).fetchone())[0]
+
+    async def add_user(self, username: str, password_hash: str, now: int) -> bool:
+        cur = await self.conn.execute(
+            "INSERT OR IGNORE INTO users(username, password_hash, created_at) VALUES (?,?,?)",
+            (username.lower(), password_hash, now))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
+    async def set_user_password(self, username: str, password_hash: str) -> bool:
+        cur = await self.conn.execute("UPDATE users SET password_hash = ? WHERE username = ?",
+                                      (password_hash, username.lower()))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
+    async def delete_user(self, username: str) -> bool:
+        cur = await self.conn.execute("DELETE FROM users WHERE username = ?", (username.lower(),))
+        await self.conn.commit()
+        return cur.rowcount > 0
 
     # ---- key/value settings ---------------------------------------------
     async def get_setting(self, key: str, default: Any = None) -> Any:
