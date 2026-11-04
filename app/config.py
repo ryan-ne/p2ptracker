@@ -25,6 +25,18 @@ class Settings(BaseSettings):
     dashboard_user: str = ""
     dashboard_pass: str = ""
 
+    # Pattern agent: checks 1-minute price behaviour and posts sudden moves to the Telegram chat
+    pattern_enabled: bool = True
+    pattern_interval: int = 60          # seconds between checks
+    pattern_spike_pct: float = 0.4      # min % move within 1/5/15 min to count as a spike/drop
+    pattern_spike_z: float = 3.0        # ...and it must be this many std-devs beyond normal 1-min noise
+    pattern_trend_minutes: int = 10     # min length of a one-direction run
+    pattern_trend_pct: float = 0.3      # min total % move over that run
+    pattern_cooldown_min: int = 30      # don't repeat the same pattern for the same market within this
+    # AI summary of each detection (leave the key empty to send rule-based messages only)
+    anthropic_api_key: str = ""
+    pattern_model: str = "claude-opus-5-5"
+
     # Display timezone for alert messages
     display_tz: str = "Asia/Yangon"
 

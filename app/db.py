@@ -57,6 +57,20 @@ CREATE TABLE IF NOT EXISTS alert_events (
 );
 CREATE INDEX IF NOT EXISTS ix_events_ts ON alert_events(ts);
 
+CREATE TABLE IF NOT EXISTS pattern_events (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts        INTEGER NOT NULL,
+    exchange  TEXT NOT NULL,
+    side      TEXT NOT NULL,
+    kind      TEXT NOT NULL,          -- spike | drop | trend_up | trend_down
+    minutes   INTEGER NOT NULL,
+    pct       REAL NOT NULL,
+    start_price REAL NOT NULL,
+    end_price   REAL NOT NULL,
+    z         REAL
+);
+CREATE INDEX IF NOT EXISTS ix_pattern_ts ON pattern_events(ts);
+
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -190,6 +204,20 @@ class Database:
 
     async def list_events(self, limit: int = 50) -> list[dict]:
         cur = await self.conn.execute("SELECT * FROM alert_events ORDER BY ts DESC, id DESC LIMIT ?", (limit,))
+        return [dict(r) for r in await cur.fetchall()]
+
+    # ---- pattern events ------------------------------------------------
+    async def add_pattern_event(self, ts: int, exchange: str, side: str, kind: str, minutes: int,
+                                pct: float, start: float, end: float, z: float | None) -> None:
+        await self.conn.execute(
+            "INSERT INTO pattern_events(ts, exchange, side, kind, minutes, pct, start_price, end_price, z) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (ts, exchange, side, kind, minutes, pct, start, end, z),
+        )
+        await self.conn.commit()
+
+    async def list_pattern_events(self, limit: int = 50) -> list[dict]:
+        cur = await self.conn.execute("SELECT * FROM pattern_events ORDER BY ts DESC, id DESC LIMIT ?", (limit,))
         return [dict(r) for r in await cur.fetchall()]
 
     # ---- key/value settings ---------------------------------------------

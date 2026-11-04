@@ -143,6 +143,11 @@ async def alert_events(request: Request, limit: int = Query(50, ge=1, le=500)):
     return await request.app.state.db.list_events(limit)
 
 
+@router.get("/pattern-events")
+async def pattern_events(request: Request, limit: int = Query(50, ge=1, le=500)):
+    return await request.app.state.db.list_pattern_events(limit)
+
+
 @router.get("/settings")
 async def get_settings(request: Request):
     db, p = request.app.state.db, request.app.state.poller

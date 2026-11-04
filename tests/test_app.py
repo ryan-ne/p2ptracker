@@ -173,7 +173,11 @@ def test_tampered_or_stale_session_rejected(tmp_path):
     with TestClient(auth_app(tmp_path)) as c:
         c.post("/api/login", json={"username": "u", "password": "p"})
         good = c.cookies.get("p2p_session")
-        c.cookies.set("p2p_session", good[:-4] + "AAAA")
+        c.cookies.clear()                      # else the real cookie is still sent alongside
+        c.cookies.set("p2p_session", good[:-8] + "AAAAAAAA")
+        assert c.get("/api/alerts").status_code == 401
+        c.cookies.clear()
+        c.cookies.set("p2p_session", "not-base64!")
         assert c.get("/api/alerts").status_code == 401
     # same DB (same secret) but password changed -> old session invalid
     with TestClient(auth_app(tmp_path, pw="new")) as c:

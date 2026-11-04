@@ -21,6 +21,7 @@ from .config import Settings, get_settings
 from .db import Database
 from .exchanges import build_exchanges
 from .poller import LogNotifier, Poller
+from .patterns import PatternAgent
 from .retention import retention_loop
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -75,6 +76,13 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                     poller.notifier = LogNotifier()
             tasks = [asyncio.create_task(poller.run(), name="poller"),
                      asyncio.create_task(retention_loop(db, settings.raw_retention_days), name="retention")]
+            if settings.pattern_enabled:
+                summarizer = None
+                if settings.anthropic_api_key:
+                    from .patterns import ClaudeSummarizer
+                    summarizer = ClaudeSummarizer(settings.anthropic_api_key, settings.pattern_model)
+                app.state.pattern_agent = PatternAgent(settings, db, poller, summarizer)
+                tasks.append(asyncio.create_task(app.state.pattern_agent.run(), name="patterns"))
             await poller.load_interval()
             log.info("polling %s every %.0fs", settings.exchange_list, poller.interval)
             if not auth_on:

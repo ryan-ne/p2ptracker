@@ -87,6 +87,26 @@ your real account on the server.
 - **Update every** (top bar) sets how often the exchanges are polled: 5 s minimum, up to 10 min. It
   applies immediately and is saved, overriding `POLL_INTERVAL` from `.env`.
 
+## Pattern agent (sudden moves → group chat)
+
+Every `PATTERN_INTERVAL` seconds (default 60) the agent turns the last hour of stored best prices into
+1-minute closes per exchange/side and checks two rules:
+
+| Pattern | Fires when (defaults) |
+|---|---|
+| **Sudden spike / drop** | price moved ≥ `PATTERN_SPIKE_PCT` (0.4%) within 1, 5 or 15 min **and** that move is ≥ `PATTERN_SPIKE_Z` (3) standard deviations beyond the last hour's normal 1-minute noise — so a 0.4% move in a jumpy market won't fire, but in a quiet one will |
+| **Trend run** | price kept moving one way (flat minutes allowed, no step against it) for ≥ `PATTERN_TREND_MINUTES` (10) and ≥ `PATTERN_TREND_PCT` (0.3%) in total |
+
+Each exchange/side/direction is reported at most once per `PATTERN_COOLDOWN_MIN` (30). Messages go to
+`TELEGRAM_CHAT_ID`, respect `/pause`, are stored, and appear in the dashboard's *Recent alerts* with a
+**Pattern** tag; `/patterns` in Telegram lists the latest ones.
+
+**AI summary (optional):** with `ANTHROPIC_API_KEY` set, Claude (`PATTERN_MODEL`, default
+`claude-opus-5-5`, low effort) adds 2-3 sentences describing the move — e.g. whether both exchanges
+moved or one, and the spread. It only describes, never advises. It's called only when a pattern fires
+(usually a few times a day), and if the call fails the rule-based message is sent on its own. Set
+`PATTERN_MODEL=claude-haiku-5-5` for a cheaper model.
+
 ## Data & retention
 
 - `rate_snapshots`: one row per exchange/side per poll (~104k rows/day).

@@ -192,14 +192,25 @@ async function refreshRules() {
     || `<div class="empty">No alerts yet. Use the form, or 🔔 on any ad.</div>`);
 }
 
+const PATTERN_LABEL = { spike: "Sudden spike", drop: "Sudden drop", trend_up: "Rising run", trend_down: "Falling run" };
+
 async function refreshEvents() {
-  const ev = await api("/api/alert-events?limit=30");
-  const head = `<div class="trow head"><span>Time</span><span>Market</span><span>Price</span><span>Rule</span></div>`;
-  $("events").innerHTML = head + (ev.map((e) => `<div class="trow">
+  const [alerts, patterns] = await Promise.all([
+    api("/api/alert-events?limit=30"),
+    api("/api/pattern-events?limit=30").catch(() => []),
+  ]);
+  const rows = [
+    ...alerts.map((e) => ({ ts: e.ts, side: e.side, exchange: e.exchange, price: e.price,
+      what: `#${e.rule_id} ${e.metric === "avg5" ? "avg 5" : "best"} ${opSym(e.op)} ${fmt(e.threshold)}` })),
+    ...patterns.map((p) => ({ ts: p.ts, side: p.side, exchange: p.exchange, price: p.end_price, pattern: true,
+      what: `${PATTERN_LABEL[p.kind] || esc(p.kind)} <span class="${p.pct > 0 ? "up" : "down"}">${p.pct > 0 ? "+" : ""}${fmt(p.pct)}%</span> / ${p.minutes} min` })),
+  ].sort((a, b) => b.ts - a.ts).slice(0, 30);
+  const head = `<div class="trow head"><span>Time</span><span>Market</span><span>Price</span><span>Trigger</span></div>`;
+  $("events").innerHTML = head + (rows.map((e) => `<div class="trow">
       <span class="small muted">${fmtTime(e.ts, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
       <span><span class="side-pill ${esc(e.side)}">${esc(e.side)}</span> <span style="text-transform:capitalize">${esc(e.exchange)}</span></span>
       <span class="num ${e.side === "BUY" ? "up" : "down"}">${fmt(e.price)}</span>
-      <span class="small muted">#${e.rule_id} ${e.metric === "avg5" ? "avg 5" : "best"} ${opSym(e.op)} ${fmt(e.threshold)}</span></div>`).join("")
+      <span class="small muted">${e.pattern ? '<span class="pattern-tag">Pattern</span> ' : ""}${e.what}</span></div>`).join("")
     || `<div class="empty">No alerts fired yet.</div>`);
 }
 

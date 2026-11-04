@@ -5,6 +5,7 @@ aiosqlite>=0.20
 pydantic-settings>=2.6
 python-telegram-bot>=21.6
 tzdata>=2024.1
+anthropic>=2.4
 
 # dev / test
 pytest>=8.3

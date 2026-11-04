@@ -27,6 +27,7 @@ HELP = (
     "   e.g. <code>/add bybit buy best &lt;= 4850</code>\n"
     "/del &lt;id&gt; — delete rule\n"
     "/on &lt;id&gt; · /off &lt;id&gt; — enable/disable rule\n"
+    "/patterns — recent unusual moves found by the pattern agent\n"
     "/pause · /resume — mute/unmute all alerts\n"
     "/chatid — show this chat's id"
 )
@@ -69,7 +70,7 @@ class TelegramBot:
         cmds = {
             "start": self.cmd_help, "help": self.cmd_help, "now": self.cmd_now, "alerts": self.cmd_alerts,
             "add": self.cmd_add, "del": self.cmd_del, "on": self.cmd_on, "off": self.cmd_off,
-            "pause": self.cmd_pause, "resume": self.cmd_resume,
+            "pause": self.cmd_pause, "resume": self.cmd_resume, "patterns": self.cmd_patterns,
         }
         for name, fn in cmds.items():
             self.app.add_handler(CommandHandler(name, fn, filters=chat_filter))
@@ -162,6 +163,19 @@ class TelegramBot:
 
     async def cmd_off(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await self._toggle(update, ctx, False)
+
+    async def cmd_patterns(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        from .patterns import Event
+        rows = await self.db.list_pattern_events(10)
+        if not rows:
+            await self._reply(update, "No unusual moves detected yet.")
+            return
+        lines = ["<b>Recent unusual moves</b>"]
+        for r in rows:
+            ev = Event(r["exchange"], r["side"], r["kind"], r["minutes"], r["pct"],
+                       r["start_price"], r["end_price"], r["z"])
+            lines.append(f"{fmt_time(r['ts'], self.tz)[5:16]} {ev.describe()}")
+        await self._reply(update, "\n".join(lines))
 
     async def cmd_pause(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await self.db.set_setting("alerts_paused", True)
