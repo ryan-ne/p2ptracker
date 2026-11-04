@@ -170,6 +170,16 @@ def test_claude_summarizer_request_shape_and_refusal(monkeypatch):
     assert run(s.summarize(ev, "ctx")) is None
 
 
+def test_summary_language_prompt():
+    from app.patterns import system_prompt
+    my = system_prompt("burmese")
+    assert "Burmese" in my and "Unicode Myanmar script" in my and "not Zawgyi" in my
+    assert system_prompt("Myanmar") == my and system_prompt("my") == my
+    assert "Burmese" not in system_prompt("english")
+    assert "Write the summary in Thai" in system_prompt("Thai")
+    assert "Burmese" in ClaudeSummarizer(api_key="k", model="m").system      # default is Burmese
+
+
 def test_claude_summarizer_api_error_returns_none(monkeypatch):
     import anthropic
     import httpx2

@@ -141,8 +141,8 @@ class Summarizer(Protocol):
     async def summarize(self, events: list[Event], context: str) -> str | None: ...
 
 
-SYSTEM_PROMPT = (
-    "You watch USDT/MMK peer-to-peer (P2P) exchange rates on Bybit and Bitget for a trader in Myanmar. "
+BASE_PROMPT = (
+    "You watch USDT/MMK peer-to-peer (P2P) exchange rates on Bybit and Bitget for traders in Myanmar. "
     "BUY is the price a user pays for 1 USDT; SELL is what a user receives for 1 USDT. "
     "A rule-based detector has flagged unusual price behaviour. Write 2-3 short sentences of plain text "
     "for a Telegram group: what happened, whether it shows up on both exchanges or one, and anything "
@@ -150,12 +150,32 @@ SYSTEM_PROMPT = (
     "Describe; do not tell anyone to buy or sell, and do not predict prices. No markdown, no emojis."
 )
 
+BURMESE_RULES = (
+    " Write the summary in Burmese, in standard Unicode Myanmar script (not Zawgyi), using simple everyday "
+    "words a market trader would use. Keep exchange names (Bybit, Bitget), BUY/SELL, USDT, MMK and all "
+    "numbers exactly as they appear in the data (Western digits, same thousands separators), so they "
+    "match the alert lines above the summary."
+)
+
+
+def system_prompt(language: str) -> str:
+    lang = (language or "english").strip().lower()
+    if lang in ("burmese", "myanmar", "my"):
+        return BASE_PROMPT + BURMESE_RULES
+    if lang in ("english", "en"):
+        return BASE_PROMPT
+    return BASE_PROMPT + f" Write the summary in {language}; keep exchange names and numbers as in the data."
+
+
+SYSTEM_PROMPT = system_prompt("english")  # kept for reference/tests
+
 
 class ClaudeSummarizer:
-    def __init__(self, api_key: str, model: str):
+    def __init__(self, api_key: str, model: str, language: str = "burmese"):
         from anthropic import AsyncAnthropic  # imported lazily: only needed when the AI summary is on
         self.client = AsyncAnthropic(api_key=api_key, timeout=45.0, max_retries=1)
         self.model = model
+        self.system = system_prompt(language)
 
     async def summarize(self, events: list[Event], context: str) -> str | None:
         import anthropic
@@ -165,7 +185,7 @@ class ClaudeSummarizer:
             resp = await self.client.beta.messages.create(
                 model=self.model,
                 max_tokens=2000,
-                system=SYSTEM_PROMPT,
+                system=self.system,
                 output_config={"effort": "low"},
                 # Server-side fallback: if the model declines, the API retries on a fallback model.
                 betas=["server-side-fallback-2026-07-01"],

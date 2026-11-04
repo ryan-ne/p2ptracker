@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # AI summary of each detection (leave the key empty to send rule-based messages only)
     anthropic_api_key: str = ""
     pattern_model: str = "claude-opus-5-5"
+    pattern_summary_lang: str = "burmese"   # burmese | english | any other language name
 
     # Display timezone for alert messages
     display_tz: str = "Asia/Yangon"

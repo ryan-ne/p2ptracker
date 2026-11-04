@@ -119,7 +119,9 @@ Each exchange/side/direction is reported at most once per `PATTERN_COOLDOWN_MIN`
 **Pattern** tag; `/patterns` in Telegram lists the latest ones.
 
 **AI summary (optional):** with `ANTHROPIC_API_KEY` set, Claude (`PATTERN_MODEL`, default
-`claude-opus-5-5`, low effort) adds 2-3 sentences describing the move — e.g. whether both exchanges
+`claude-opus-5-5`, low effort) adds 2-3 sentences describing the move, written in **Burmese** by
+default (Unicode Myanmar script; exchange names, BUY/SELL and numbers kept as-is; set
+`PATTERN_SUMMARY_LANG=english` or another language to change it) — e.g. whether both exchanges
 moved or one, and the spread. It only describes, never advises. It's called only when a pattern fires
 (usually a few times a day), and if the call fails the rule-based message is sent on its own. Set
 `PATTERN_MODEL=claude-haiku-5-5` for a cheaper model.

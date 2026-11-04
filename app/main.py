@@ -79,7 +79,8 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
                 summarizer = None
                 if settings.anthropic_api_key:
                     from .patterns import ClaudeSummarizer
-                    summarizer = ClaudeSummarizer(settings.anthropic_api_key, settings.pattern_model)
+                    summarizer = ClaudeSummarizer(settings.anthropic_api_key, settings.pattern_model,
+                                                  settings.pattern_summary_lang)
                 app.state.pattern_agent = PatternAgent(settings, db, poller, summarizer)
                 tasks.append(asyncio.create_task(app.state.pattern_agent.run(), name="patterns"))
             await poller.load_interval()
