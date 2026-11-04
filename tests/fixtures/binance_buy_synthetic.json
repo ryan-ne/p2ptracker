@@ -1,0 +1,18 @@
+{
+  "code": "000000",
+  "message": null,
+  "data": [
+    {"adv": {"price": "4835.00", "minSingleTransAmount": "50000.00", "maxSingleTransAmount": "3000000.00",
+             "surplusAmount": "620.5", "tradeMethods": [{"identifier": "KBZPay", "tradeMethodName": "KBZPay"}]},
+     "advertiser": {"nickName": "merchantA"}},
+    {"adv": {"price": "4830.00", "minSingleTransAmount": "10000.00", "maxSingleTransAmount": "500000.00",
+             "surplusAmount": "100", "tradeMethods": [{"identifier": "WavePay", "tradeMethodName": "Wave Pay"}]},
+     "advertiser": {"nickName": "merchantB"}},
+    {"adv": {"price": "4840.00", "minSingleTransAmount": "100000.00", "maxSingleTransAmount": "9000000.00",
+             "surplusAmount": "2000", "tradeMethods": [{"identifier": "KBZPay", "tradeMethodName": "KBZPay"},
+                                                       {"identifier": "AYAPay", "tradeMethodName": "AYA Pay"}]},
+     "advertiser": {"nickName": "merchantC"}}
+  ],
+  "total": 3,
+  "success": true
+}

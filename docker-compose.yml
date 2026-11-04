@@ -1,0 +1,15 @@
+services:
+  tracker:
+    build: .
+    container_name: p2ptracker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: /app/data/p2ptracker.db
+      TZ: Asia/Yangon
+    volumes:
+      - ./data:/app/data
+    ports:
+      # Bound to localhost; put a reverse proxy (Caddy/nginx with HTTPS) in front,
+      # or change to "8000:8000" only if DASHBOARD_USER/PASS are set.
+      - "127.0.0.1:8000:8000"

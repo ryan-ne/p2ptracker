@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>USDT/MMK P2P Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div>
+    <h1>USDT / MMK P2P</h1>
+    <div class="muted" id="updated">waiting for first poll…</div>
+  </div>
+  <label class="switch" title="Mute all alerts">
+    <input type="checkbox" id="paused"> <span>Pause alerts</span>
+  </label>
+</header>
+
+<main>
+  <section class="summary">
+    <div class="stat"><div class="label">Cheapest to buy USDT</div><div class="value" id="bestBuy">–</div><div class="muted" id="bestBuyEx"></div></div>
+    <div class="stat"><div class="label">Best to sell USDT</div><div class="value" id="bestSell">–</div><div class="muted" id="bestSellEx"></div></div>
+    <div class="stat"><div class="label">Cross-exchange gap</div><div class="value" id="gap">–</div><div class="muted">best sell − cheapest buy</div></div>
+  </section>
+
+  <section class="cards" id="cards"></section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>History</h2>
+      <div class="controls">
+        <div class="seg" id="rangeSeg">
+          <button data-v="1h">1h</button><button data-v="24h" class="on">24h</button><button data-v="7d">7d</button>
+          <button data-v="30d">30d</button><button data-v="1y">1y</button><button data-v="all">All</button>
+        </div>
+        <select id="sideSel"><option value="">Buy + Sell</option><option value="BUY">Buy only</option><option value="SELL">Sell only</option></select>
+        <select id="metricSel"><option value="best">Best price</option><option value="avg5">Avg top 5</option></select>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <div class="muted small">Solid = BUY (you buy USDT) · dashed = SELL (you sell USDT). Click legend to hide a line.</div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>Alert rules</h2>
+      <form id="ruleForm" class="rule-form">
+        <select name="exchange" id="ruleEx"></select>
+        <select name="side"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
+        <select name="metric"><option value="best">best</option><option value="avg5">avg5</option></select>
+        <select name="op"><option value="<=">≤</option><option value=">=">≥</option></select>
+        <input name="threshold" type="number" step="any" min="0" placeholder="price MMK" required>
+        <input name="cooldown_sec" type="number" min="0" value="300" title="cooldown seconds">
+        <button type="submit">Add</button>
+      </form>
+      <div class="muted small" id="ruleMsg"></div>
+      <table class="tbl"><thead><tr><th>#</th><th>Rule</th><th>Last fired</th><th></th></tr></thead><tbody id="rules"></tbody></table>
+    </div>
+    <div class="panel">
+      <h2>Recent alerts</h2>
+      <table class="tbl"><thead><tr><th>Time</th><th>Exchange</th><th>Price</th><th>Rule</th></tr></thead><tbody id="events"></tbody></table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Ad filters</h2>
+    <p class="muted small">Only ads matching these filters count toward best / avg5. Leave empty for all ads. Payment methods appear as they are seen in polls.</p>
+    <div id="filters" class="filters"></div>
+    <button id="saveFilters">Save filters</button> <span class="muted small" id="filterMsg"></span>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
