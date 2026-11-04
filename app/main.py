@@ -61,6 +61,9 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             tasks = [asyncio.create_task(poller.run(), name="poller"),
                      asyncio.create_task(retention_loop(db, settings.raw_retention_days), name="retention")]
             log.info("polling %s every %.1fs", settings.exchange_list, settings.poll_interval)
+            if not (settings.dashboard_user and settings.dashboard_pass):
+                log.warning("dashboard has NO password (DASHBOARD_USER/DASHBOARD_PASS empty) - "
+                            "do not expose it publicly")
         try:
             yield
         finally:

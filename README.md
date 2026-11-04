@@ -46,8 +46,14 @@ docker compose up -d --build
 docker compose logs -f
 ```
 
-The port is bound to `127.0.0.1:8000`; put Caddy/nginx with HTTPS in front, or change the port mapping
-if you set `DASHBOARD_USER`/`DASHBOARD_PASS`.
+### Reaching the dashboard
+
+By default the port is bound to the VPS's `127.0.0.1` only. Either:
+
+- **SSH tunnel** (nothing exposed): `ssh -L 8000:localhost:8000 root@<vps-ip>`, then open http://localhost:8000.
+- **Public** at `http://<vps-ip>:8000`: in `.env` set `DASHBOARD_USER`, `DASHBOARD_PASS` and
+  `BIND_ADDR=0.0.0.0`, then `docker compose up -d`. Allow TCP 8000 in any cloud firewall. This is plain
+  HTTP (password sent unencrypted) — for long-term use put Caddy/nginx with HTTPS in front.
 
 Before deploying, check both exchanges answer from the VPS (each should print MMK prices):
 

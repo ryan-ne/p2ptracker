@@ -10,6 +10,6 @@ services:
     volumes:
       - ./data:/app/data
     ports:
-      # Bound to localhost; put a reverse proxy (Caddy/nginx with HTTPS) in front,
-      # or change to "8000:8000" only if DASHBOARD_USER/PASS are set.
-      - "127.0.0.1:8000:8000"
+      # Localhost-only by default (use an SSH tunnel). Set BIND_ADDR=0.0.0.0 in .env to expose
+      # the dashboard publicly — only together with DASHBOARD_USER/DASHBOARD_PASS.
+      - "${BIND_ADDR:-127.0.0.1}:${PORT:-8000}:8000"
