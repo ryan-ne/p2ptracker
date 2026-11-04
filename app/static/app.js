@@ -51,9 +51,6 @@ async function refreshLatest() {
   $("gap").textContent = gap == null ? "–" : (gap > 0 ? "+" : "") + fmt(gap);
   $("gap").className = "tk-val " + (gap > 0 ? "up" : "");
 
-  $("exTicker").innerHTML = Object.entries(d.exchanges).map(([ex, v]) => `<div class="ex">
-      <b><span class="ex-dot" style="background:${EX_COLOR(ex)}"></span>${esc(ex)}</b>
-      <span><span class="up num">${fmt(v.BUY?.best)}</span> / <span class="down num">${fmt(v.SELL?.best)}</span></span></div>`).join("");
 
   $("cards").innerHTML = Object.entries(d.exchanges).map(([ex, v]) => {
     const st = v.status || {};
