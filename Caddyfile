@@ -1,0 +1,6 @@
+# HTTPS reverse proxy for the dashboard. Caddy obtains and renews a Let's Encrypt
+# certificate for $DOMAIN automatically (needs ports 80 and 443 reachable and DNS pointing here).
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy tracker:8000
+}

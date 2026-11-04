@@ -53,7 +53,15 @@ By default the port is bound to the VPS's `127.0.0.1` only. Either:
 - **SSH tunnel** (nothing exposed): `ssh -L 8000:localhost:8000 root@<vps-ip>`, then open http://localhost:8000.
 - **Public** at `http://<vps-ip>:8000`: in `.env` set `DASHBOARD_USER`, `DASHBOARD_PASS` and
   `BIND_ADDR=0.0.0.0`, then `docker compose up -d`. Allow TCP 8000 in any cloud firewall. This is plain
-  HTTP (password sent unencrypted) — for long-term use put Caddy/nginx with HTTPS in front.
+  HTTP (password sent unencrypted) — prefer HTTPS below.
+- **HTTPS with your domain** (recommended): the bundled Caddy service gets a Let's Encrypt certificate
+  automatically.
+  1. DNS: add an **A record** for e.g. `p2p.example.com` → VPS IP. Check with `dig +short p2p.example.com`.
+  2. Ports 80 and 443 must be free on the VPS (`ss -tlnp | grep -E ':(80|443) '`) and open in any cloud firewall.
+  3. In `.env`: `COMPOSE_PROFILES=https`, `DOMAIN=p2p.example.com`, keep `DASHBOARD_USER`/`DASHBOARD_PASS`,
+     and set `BIND_ADDR=127.0.0.1` (closes the plain-HTTP port).
+  4. `docker compose up -d --force-recreate`, then `docker compose logs caddy` should show
+     "certificate obtained successfully". Open https://p2p.example.com.
 
 Before deploying, check both exchanges answer from the VPS (each should print MMK prices):
 

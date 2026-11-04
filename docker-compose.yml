@@ -10,6 +10,29 @@ services:
     volumes:
       - ./data:/app/data
     ports:
-      # Localhost-only by default (use an SSH tunnel). Set BIND_ADDR=0.0.0.0 in .env to expose
-      # the dashboard publicly — only together with DASHBOARD_USER/DASHBOARD_PASS.
+      # Localhost-only by default (SSH tunnel, or HTTPS via the caddy service below).
+      # BIND_ADDR=0.0.0.0 in .env exposes plain HTTP publicly — only with DASHBOARD_USER/PASS.
       - "${BIND_ADDR:-127.0.0.1}:${PORT:-8000}:8000"
+
+  # Optional HTTPS on 443 with an automatic Let's Encrypt certificate.
+  # Enable with COMPOSE_PROFILES=https and DOMAIN=your.domain in .env.
+  caddy:
+    image: caddy:2.8.4
+    container_name: p2ptracker-caddy
+    profiles: ["https"]
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - tracker
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
