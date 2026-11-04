@@ -88,8 +88,8 @@ your real account on the server.
 ## Ad filters
 
 Dashboard → *Ad filters*: per exchange, a trade amount in MMK (ad must accept it) and payment methods
-(ad must offer at least one). Bybit only returns numeric payment IDs; map known ones to names in
-`app/exchanges/bybit.py` (`PAYMENT_NAMES`).
+(ad must offer at least one). Bybit only returns numeric payment IDs; they're translated via
+`PAYMENT_NAMES` in `app/exchanges/bybit.py`. A new method shows up as `#<id>` — add it to that map.
 
 ## API
 

@@ -2,9 +2,26 @@ from .base import BUY, Ad, Exchange, ExchangeError
 
 URL = "https://api2.bybit.com/fiat/otc/item/online"
 
-# Bybit returns numeric payment-method IDs only. Add {"id": "Name"} entries here once you confirm
-# them on bybit.com (open an ad and compare); unmapped IDs are shown as-is and filters match either.
-PAYMENT_NAMES: dict[str, str] = {}
+# Bybit's ad list returns numeric payment-method IDs only. Names below come from Bybit's
+# configuration/queryAllPaymentList (verified 2026-11-04). That endpoint is bot-protected, so it
+# can't be fetched from the server; unknown IDs show as "#<id>" — add them here when they appear.
+PAYMENT_NAMES: dict[str, str] = {
+    "14": "Bank Transfer",
+    "18": "Cash Deposit to Bank",
+    "351": "WavePay",
+    "431": "AYA Pay",
+    "601": "KBZPay",
+    "602": "CB Pay",
+    "603": "Wave Money",
+    "605": "uabpay",
+    "607": "Spring Development Bank",
+    "755": "NUG Pay",
+    "773": "MMQR",
+}
+
+
+def payment_name(pid) -> str:
+    return PAYMENT_NAMES.get(str(pid), f"#{pid}")
 
 
 class Bybit(Exchange):
@@ -42,6 +59,6 @@ def parse(data: dict) -> list[Ad]:
             max_amount=float(it.get("maxAmount") or float("inf")),
             available=float(it.get("lastQuantity") or 0),
             merchant=it.get("nickName", ""),
-            pay_methods=[PAYMENT_NAMES.get(str(p), str(p)) for p in it.get("payments") or []],
+            pay_methods=[payment_name(p) for p in it.get("payments") or []],
         ))
     return ads

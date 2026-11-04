@@ -19,6 +19,8 @@ def test_bybit_parse_and_side_ordering():
     assert len(buy) == 5 and len(sell) == 5
     assert buy[0].price == 4870 and buy[0].min_amount == 8000
     assert all(a.pay_methods for a in buy)
+    assert buy[1].pay_methods == ["KBZPay"]                       # id 601
+    assert bybit.payment_name("99999") == "#99999"                # unknown id stays visible
     rb, rs = compute_rate("bybit", BUY, buy), compute_rate("bybit", SELL, sell)
     assert rb.best == min(a.price for a in buy)
     assert rs.best == max(a.price for a in sell)
