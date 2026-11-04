@@ -201,6 +201,22 @@ def test_basic_auth_fallback(tmp_path):
         assert c.get("/api/alerts", headers={"Authorization": f"Basic {bad}"}).status_code == 401
 
 
+def test_browser_cached_basic_auth_ignored(tmp_path):
+    # Regression: a browser that used the old Basic popup keeps sending the header; logout must still work.
+    basic = {"Authorization": "Basic " + base64.b64encode(b"u:p").decode()}
+    browser = {**basic, "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors"}
+    with TestClient(auth_app(tmp_path), follow_redirects=False) as c:
+        assert c.get("/api/alerts", headers=browser).status_code == 401
+        assert c.get("/", headers={**basic, "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate"}).status_code == 303
+        c.post("/api/login", json={"username": "u", "password": "p"})
+        assert c.get("/api/alerts", headers=browser).status_code == 200      # cookie session works
+        r = c.post("/api/logout", headers=browser)
+        assert "p2p_session=" in r.headers["set-cookie"] and "Max-Age=0" in r.headers["set-cookie"]
+        assert c.get("/api/alerts", headers=browser).status_code == 401     # logged out despite Basic header
+        assert c.get("/login", headers=browser).status_code == 200           # login page shown, not bounced
+        assert c.get("/api/alerts", headers=basic).status_code == 200        # curl -u still works
+
+
 def test_no_auth_configured(tmp_path):
     s = Settings(db_path=str(tmp_path / "n.db"), _env_file=None)
     with TestClient(create_app(s, start_background=False), follow_redirects=False) as c:

@@ -103,6 +103,11 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         token = request.cookies.get(auth.COOKIE)
         if token and auth.verify_token(token, settings.dashboard_user, sign_key(request)):
             return True
+        # Basic auth is only for scripts (curl -u). Browsers that signed in via the old Basic popup keep
+        # resending those credentials, which would make Log out impossible — so ignore Basic from browsers
+        # (they always send Sec-Fetch-* headers; curl and other scripts don't).
+        if any(h in request.headers for h in ("sec-fetch-site", "sec-fetch-mode")):
+            return False
         return auth.basic_ok(request.headers.get("authorization", ""), settings.dashboard_user, settings.dashboard_pass)
 
     @app.middleware("http")
@@ -150,9 +155,10 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         return resp
 
     @app.post("/api/logout", include_in_schema=False)
-    async def logout():
+    async def logout(request: Request):
         resp = JSONResponse({"ok": True})
-        resp.delete_cookie(auth.COOKIE)
+        # Same attributes as when set, so every browser actually drops it.
+        resp.delete_cookie(auth.COOKIE, path="/", httponly=True, samesite="lax", secure=auth.is_https(request))
         return resp
 
     @app.get("/api/me", include_in_schema=False)
