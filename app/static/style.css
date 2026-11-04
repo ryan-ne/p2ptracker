@@ -241,7 +241,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .login-card > p.small { margin: 0 0 24px; }
 .login-card code { background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-size: 11px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; font-size: 13px; color: var(--muted); }
-.field input { width: 100%; padding: 11px 14px; font-size: 15px; background: var(--panel-2); border-radius: 8px; }
+.field input { width: 100%; padding: 11px 14px; font-size: 16px; background: var(--panel-2); border-radius: 8px; }
 .field input:hover { border-color: var(--faint); }
 .field input:focus { border-color: var(--accent); }
 .pw-wrap { position: relative; display: block; }
@@ -301,3 +301,73 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .lg { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
 .lg.up { background: var(--up); } .lg.down { background: var(--down); }
 .lg.gap { height: 10px; background: rgba(132,142,156,.25); }
+
+/* ======================================================================
+   Mobile
+   ====================================================================== */
+.logout { display: inline-flex; align-items: center; gap: 6px; }
+.logout[hidden] { display: none; }
+.bottom-nav { display: none; }
+
+@media (max-width: 900px) {
+  /* App-style bottom tab bar replaces the hidden top nav */
+  .bottom-nav {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: var(--bar); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    min-height: 56px; font-size: 11px; color: var(--muted); }
+  .bottom-nav a.active { color: var(--accent); }
+  .bottom-nav svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round; }
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .panel, .grid2, #cards { scroll-margin-top: 72px; }
+}
+
+@media (max-width: 600px) {
+  /* Top bar: compact */
+  .topbar { gap: 10px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .brand { font-size: 16px; gap: 8px; }
+  .logo { width: 28px; height: 28px; }
+  .top-right { gap: 10px; }
+  .logout { padding: 6px 8px; }
+  .logout-label { display: none; }
+
+  /* Price strip: everything visible, no sideways scrolling */
+  .ticker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; overflow: visible; }
+  .pair { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: 10px;
+    padding: 0 0 8px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .pair-name { font-size: 17px; }
+  .tk { min-width: 0; }
+  .tk-label, .tk-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tk-val { font-size: 17px; }
+
+  /* Exchange cards: a bit denser */
+  .card { padding: 14px 16px; }
+  .card .row { grid-template-columns: 44px 1fr 1fr; }
+  .card .big { font-size: 20px; }
+
+  /* Recent alerts: two tidy lines per row instead of a 4-column table */
+  #events .trow.head { display: none; }
+  #events .trow { grid-template-columns: 1fr auto; grid-template-areas: "mkt price" "trig time"; row-gap: 4px; }
+  #events .trow > :nth-child(1) { grid-area: time; text-align: right; }
+  #events .trow > :nth-child(2) { grid-area: mkt; }
+  #events .trow > :nth-child(3) { grid-area: price; text-align: right; }
+  #events .trow > :nth-child(4) { grid-area: trig; grid-column: auto; color: var(--muted); }
+
+  /* Chart controls: full-width segmented rows */
+  #history .controls { width: 100%; }
+  #rangeSeg { width: 100%; display: grid; grid-template-columns: repeat(6, 1fr); }
+  .chart-stats { gap: 16px; }
+  .chart-stats .st-val { font-size: 16px; }
+
+  /* iOS zooms into inputs smaller than 16px - keep form controls at 16px */
+  input, select, textarea, .interval select { font-size: 16px; }
+  .rule-form label { flex: 1 1 calc(50% - 5px); }
+  .rule-form label > input[name], .rule-form label > select { width: 100%; }
+  .rule-form .btn-primary { flex: 1 1 100%; padding: 10px; }
+  .filters .amt { flex-wrap: wrap; }
+  .filters .amt input { width: 100%; }
+}

@@ -367,13 +367,17 @@ function liveLoop(now = false) {
 }
 
 /* ---------- nav highlight ---------- */
-const navLinks = [...document.querySelectorAll(".nav a")];
+const navLinks = [...document.querySelectorAll(".nav a, .bottom-nav a")];
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((en) => {
     if (en.isIntersecting) navLinks.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + en.target.id));
   });
 }, { rootMargin: "-40% 0px -55% 0px" });
 ["market", "history", "alerts", "filters"].forEach((id) => observer.observe($(id)));
+// At the very top (exchange cards above the ad list) the P2P tab is the current one.
+addEventListener("scroll", () => {
+  if (scrollY < 120) navLinks.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#market"));
+}, { passive: true });
 
 /* ---------- boot ---------- */
 $("logout").addEventListener("click", async () => {
