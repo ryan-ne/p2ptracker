@@ -1,6 +1,6 @@
 # p2ptracker — USDT/MMK P2P rate tracker
 
-Polls USDT↔MMK P2P ads on **Binance, Bybit and Bitget** every 5 seconds, stores rates in SQLite,
+Polls USDT↔MMK P2P ads on **Bybit and Bitget** every 5 seconds, stores rates in SQLite,
 serves a historical dashboard, and sends **Telegram alerts** when a price crosses your thresholds.
 
 - **BUY** = you buy USDT (merchants' sell ads; lower is better)
@@ -28,7 +28,7 @@ Open http://localhost:8000.
 |---|---|
 | `/now` | current rates table, cheapest buy / best sell |
 | `/alerts` | list rules |
-| `/add binance buy best <= 4550 [cooldown_sec]` | add rule (exchange may be `any`; metric `best` or `avg5`) |
+| `/add bybit buy best <= 4850 [cooldown_sec]` | add rule (exchange may be `any`; metric `best` or `avg5`) |
 | `/del 3`, `/on 3`, `/off 3` | delete / enable / disable rule |
 | `/pause`, `/resume` | mute all alerts |
 
@@ -49,14 +49,21 @@ docker compose logs -f
 The port is bound to `127.0.0.1:8000`; put Caddy/nginx with HTTPS in front, or change the port mapping
 if you set `DASHBOARD_USER`/`DASHBOARD_PASS`.
 
-**Pick a region the exchanges serve** (e.g. Singapore). Before deploying, from the VPS run:
+Before deploying, check both exchanges answer from the VPS (each should print MMK prices):
 
 ```bash
-curl -s -X POST https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search -H 'Content-Type: application/json' -d '{"asset":"USDT","fiat":"MMK","tradeType":"BUY","page":1,"rows":3,"payTypes":[]}'
+curl -s -X POST https://api2.bybit.com/fiat/otc/item/online -H 'Content-Type: application/json' -d '{"tokenId":"USDT","currencyId":"MMK","side":"1","size":"3","page":"1","amount":"","payment":[]}' | head -c 300; echo
+curl -s -X POST https://www.bitget.com/v1/p2p/pub/adv/queryAdvList -H 'Content-Type: application/json' -d '{"side":1,"pageNo":1,"pageSize":3,"coinCode":"USDT","fiatCode":"MMK","languageType":0}' | head -c 300; echo
 ```
 
-If `"data":[]` comes back, Binance is hiding ads from that IP — the dashboard then shows Binance as
-"No ads returned".
+### Why Binance is off by default
+
+The Binance adapter exists (`app/exchanges/binance.py`) but Binance only offers MMK on P2P to
+logged-in accounts with Myanmar KYC. Anonymous requests get a region-based fiat list without MMK
+(verified from JP, SG and a home connection), so polling returns no ads. Adding `binance` to
+`EXCHANGES` is harmless — the dashboard just shows it as "No ads returned". Feeding the tracker your
+Binance session cookies would work around this but is not supported: it puts a live session for
+your real account on the server.
 
 ## Data & retention
 

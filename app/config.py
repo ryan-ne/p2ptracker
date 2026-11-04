@@ -28,8 +28,9 @@ class Settings(BaseSettings):
     # Display timezone for alert messages
     display_tz: str = "Asia/Yangon"
 
-    # Which exchanges to poll
-    exchanges: str = "binance,bybit,bitget"
+    # Which exchanges to poll. Binance is supported but off by default: it only shows MMK ads to
+    # logged-in Myanmar-KYC accounts, so anonymous polling returns no ads.
+    exchanges: str = "bybit,bitget"
 
     @property
     def exchange_list(self) -> list[str]:

@@ -24,7 +24,7 @@ HELP = (
     "/now — current rates\n"
     "/alerts — list alert rules\n"
     "/add &lt;exchange|any&gt; &lt;buy|sell&gt; &lt;best|avg5&gt; &lt;&lt;=|&gt;=&gt; &lt;price&gt; [cooldown_sec]\n"
-    "   e.g. <code>/add binance buy best &lt;= 4550</code>\n"
+    "   e.g. <code>/add bybit buy best &lt;= 4850</code>\n"
     "/del &lt;id&gt; — delete rule\n"
     "/on &lt;id&gt; · /off &lt;id&gt; — enable/disable rule\n"
     "/pause · /resume — mute/unmute all alerts\n"
@@ -121,7 +121,7 @@ class TelegramBot:
     async def cmd_add(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         a = ctx.args or []
         if len(a) not in (5, 6):
-            await self._reply(update, "Usage: <code>/add binance buy best &lt;= 4550 [cooldown_sec]</code>")
+            await self._reply(update, "Usage: <code>/add bybit buy best &lt;= 4850 [cooldown_sec]</code>")
             return
         exchange, side, metric, op = a[0].lower(), a[1].upper(), a[2].lower(), a[3]
         err = validate_rule(exchange, side, metric, op, self.valid_exchanges)
