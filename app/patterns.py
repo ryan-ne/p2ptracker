@@ -28,7 +28,8 @@ log = logging.getLogger("patterns")
 HISTORY_MIN = 60          # minutes of 1-min closes used as the "normal behaviour" baseline
 MIN_HISTORY_MIN = 20      # need at least this much before judging spikes
 SPIKE_WINDOWS = (1, 5, 15)
-SIGMA_FLOOR_PCT = 0.05    # MMK P2P prices often sit flat; stop a tiny std-dev from exaggerating z-scores
+MAX_FILL_MIN = 3          # forward-fill at most this many missing minutes; a longer gap restarts the series
+SIGMA_FLOOR_PCT = 0.05   # MMK P2P prices often sit flat; stop a tiny std-dev from exaggerating z-scores
 
 
 @dataclass
@@ -82,14 +83,21 @@ def minute_closes(rows: list[tuple[int, float]], end_minute: int, minutes: int =
     last_by_min: dict[int, float] = {}
     for ts, price in rows:
         last_by_min[ts // 60] = price
-    grid, cur = [], None
+    grid, cur, last_seen = [], None, None
     for m in range(end_minute - minutes, end_minute + 1):
         if m in last_by_min:
-            cur = last_by_min[m]
+            if last_seen is not None and m - last_seen > MAX_FILL_MIN:
+                # Data gap (server restart, exchange outage): don't treat the price before and after the
+                # gap as a move within minutes - start the series fresh after the gap.
+                grid = []
+            cur, last_seen = last_by_min[m], m
         elif cur is None:
             earlier = [k for k in last_by_min if k < m]
-            cur = last_by_min[max(earlier)] if earlier else None
-        if cur is not None:
+            if earlier:
+                cur, last_seen = last_by_min[max(earlier)], max(earlier)
+        elif m - last_seen > MAX_FILL_MIN:
+            continue  # inside a gap: don't forward-fill
+        if cur is not None and (last_seen is None or m - last_seen <= MAX_FILL_MIN):
             grid.append(cur)
     return grid
 

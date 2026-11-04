@@ -73,7 +73,10 @@
 
   <section id="history" class="panel">
     <div class="panel-head">
-      <h2>Price history</h2>
+      <div class="chart-title">
+        <h2>Price history</h2>
+        <div class="ex-tabs" id="chartExTabs" role="tablist" aria-label="Exchange"></div>
+      </div>
       <div class="controls">
         <div class="seg" id="rangeSeg">
           <button data-v="1h">1H</button><button data-v="24h" class="on">24H</button><button data-v="7d">7D</button>
@@ -87,8 +90,13 @@
         </div>
       </div>
     </div>
+    <div class="chart-stats" id="chartStats"></div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
-    <div class="muted small">Solid = Buy (you buy USDT) · dashed = Sell (you sell USDT) · click legend to hide a line</div>
+    <div class="chart-legend small">
+      <span><i class="lg up"></i>Buy — what you pay for 1 USDT</span>
+      <span><i class="lg down"></i>Sell — what you get for 1 USDT</span>
+      <span><i class="lg gap"></i>Spread between them</span>
+    </div>
   </section>
 
   <section id="alerts" class="grid2">

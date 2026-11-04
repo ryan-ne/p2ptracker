@@ -22,6 +22,20 @@ def test_minute_closes_last_per_minute_and_forward_fill():
     assert minute_closes(rows, end_minute=13, minutes=4) == [2.0, 2.0, 5.0, 5.0]
 
 
+def test_minute_closes_restarts_after_long_gap():
+    rows = [(m * 60, 100.0) for m in range(0, 30)] + [(m * 60, 110.0) for m in range(40, 45)]  # 10-min gap
+    closes = minute_closes(rows, end_minute=44, minutes=60)
+    assert closes == [110.0] * 5          # only the unbroken segment after the gap
+
+
+def test_no_false_spike_after_server_restart():
+    rows = [(m * 60, 4850.0 + (m % 2)) for m in range(0, 50)]          # 50 quiet minutes
+    rows += [(m * 60, 4900.0) for m in range(58, 61)]                  # 8-min outage, price moved meanwhile
+    closes = minute_closes(rows, end_minute=60, minutes=60)
+    assert detect_spike(closes, "bybit", "BUY", TH) is None             # too little unbroken history
+    assert detect_trend(closes, "bybit", "BUY", TH) is None
+
+
 # ---------- spikes ----------
 def test_spike_detected_on_sudden_jump():
     closes = noisy(60) + [4850 * 1.01]          # +1% in the last minute

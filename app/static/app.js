@@ -121,22 +121,37 @@ function tickLabel(ts, span) {
   return fmtTime(ts, { day: "2-digit", month: "short", year: "2-digit" });
 }
 
+let historySeq = 0;
 async function refreshHistory() {
-  const q = new URLSearchParams({ range: state.range });
+  if (!state.chartEx) return;
+  const seq = ++historySeq;  // ignore late responses after a quick tab switch
+  const q = new URLSearchParams({ range: state.range, exchange: state.chartEx });
   if (state.histSide) q.set("side", state.histSide);
   let d;
   try { d = await api("/api/history?" + q); } catch { return; }
+  if (seq !== historySeq) return;
   const idx = state.metric === "best" ? 1 : 2;
   const span = d.to - d.from;
-  const datasets = d.series.map((s) => ({
-    label: `${s.exchange} ${s.side}`,
-    data: s.points.map((p) => ({ x: p[0], y: p[idx] })),
-    borderColor: EX_COLOR(s.exchange), backgroundColor: EX_COLOR(s.exchange),
-    borderDash: s.side === "SELL" ? [6, 4] : [],
-    borderWidth: 1.6, pointRadius: s.points.length < 60 ? 2 : 0, tension: 0.15, spanGaps: false,
-  }));
-  const hidden = new Set((state.chart?.data.datasets || []).filter((_, i) => !state.chart.isDatasetVisible(i)).map((x) => x.label));
-  datasets.forEach((ds) => { ds.hidden = hidden.has(ds.label); });
+  // Break the line where data is missing (server down, exchange outage) instead of drawing a fake slope.
+  const step = d.bucket || Math.max(5, state.interval || 5);
+  const maxGap = Math.max(step * 4, 120);
+  const withGaps = (pts) => pts.flatMap((p, i) => {
+    const pt = { x: p[0], y: p[idx] };
+    return i && p[0] - pts[i - 1][0] > maxGap ? [{ x: pts[i - 1][0] + step, y: null }, pt] : [pt];
+  });
+  const bySide = Object.fromEntries(d.series.map((s) => [s.side, withGaps(s.points)]));
+  const both = bySide.BUY && bySide.SELL;
+  const line = (side, color) => ({
+    label: side === "BUY" ? "Buy" : "Sell", side,
+    data: bySide[side], borderColor: color, backgroundColor: color,
+    borderWidth: 2, pointRadius: bySide[side].length < 60 ? 2 : 0, pointHoverRadius: 4, tension: 0.2, spanGaps: false,
+  });
+  const datasets = [];
+  if (bySide.BUY) datasets.push(line("BUY", css("--up")));
+  if (bySide.SELL) datasets.push({ ...line("SELL", css("--down")),
+    // shade the spread between the two lines
+    ...(both ? { fill: "-1", backgroundColor: "rgba(132,142,156,0.14)" } : {}) });
+  renderChartStats(bySide);
 
   if (state.chart) {
     Object.assign(state.chart.options.scales.x, { min: d.from, max: d.to });
@@ -151,19 +166,57 @@ async function refreshHistory() {
     data: { datasets },
     options: {
       animation: false, responsive: true, maintainAspectRatio: false, parsing: false, normalized: true,
-      interaction: { mode: "nearest", axis: "x", intersect: false },
+      interaction: { mode: "x", intersect: false },
       scales: {
         x: { type: "linear", min: d.from, max: d.to, grid: { color: grid }, border: { color: grid }, ticks: { color: text, maxTicksLimit: 8, callback: (v) => tickLabel(v, span) } },
         y: { position: "right", grid: { color: grid }, border: { color: grid }, ticks: { color: text, callback: (v) => fmt(v) } },
       },
       plugins: {
-        legend: { labels: { color: text, boxWidth: 14, font: { family: "IBM Plex Sans" } } },
-        tooltip: { backgroundColor: css("--panel-2"), borderColor: grid, borderWidth: 1, titleColor: css("--text"), bodyColor: css("--text"),
-          callbacks: { title: (items) => fmtTime(items[0].parsed.x), label: (c) => ` ${c.dataset.label}: ${fmt(c.parsed.y)}` } },
+        legend: { display: false },  // explained by the legend row under the chart
+        filler: { propagate: false },
+        tooltip: { backgroundColor: css("--panel-2"), borderColor: grid, borderWidth: 1, titleColor: css("--text"),
+          bodyColor: css("--text"), footerColor: css("--muted"), padding: 10, boxPadding: 4,
+          callbacks: {
+            title: (items) => fmtTime(items[0].parsed.x),
+            label: (c) => ` ${c.dataset.label}: ${fmt(c.parsed.y)} MMK`,
+            footer: (items) => {
+              const b = items.find((i) => i.dataset.side === "BUY"), s = items.find((i) => i.dataset.side === "SELL");
+              return b && s ? `Spread: ${fmt(b.parsed.y - s.parsed.y)} MMK` : "";
+            },
+          } },
       },
     },
   });
 }
+
+function renderChartStats(bySide) {
+  const stat = (label, pts, cls) => {
+    pts = (pts || []).filter((p) => p.y != null);
+    if (!pts.length) return "";
+    const first = pts[0].y, last = pts[pts.length - 1].y, chg = last - first, pctChg = first ? (chg / first) * 100 : 0;
+    const dir = chg > 0 ? "up" : chg < 0 ? "down" : "muted";
+    return `<div class="st"><span class="st-label">${label}</span><span class="st-val ${cls}">${fmt(last)}</span>
+      <span class="st-chg ${dir}">${chg > 0 ? "+" : ""}${fmt(chg)} (${chg > 0 ? "+" : ""}${fmt(pctChg)}%) this range</span></div>`;
+  };
+  let html = stat("Buy now", bySide.BUY, "up") + stat("Sell now", bySide.SELL, "down");
+  const lastY = (pts) => (pts || []).filter((p) => p.y != null).at(-1)?.y;
+  if (lastY(bySide.BUY) != null && lastY(bySide.SELL) != null) {
+    const sp = lastY(bySide.BUY) - lastY(bySide.SELL);
+    html += `<div class="st"><span class="st-label">Spread now</span><span class="st-val">${fmt(sp)}</span>
+      <span class="st-chg muted">buy − sell</span></div>`;
+  }
+  $("chartStats").innerHTML = html || `<span class="muted small">No data for ${esc(state.chartEx)} in this range yet.</span>`;
+}
+
+function setChartEx(ex) {
+  state.chartEx = ex;
+  try { localStorage.setItem("p2p.chartEx", ex); } catch {}
+  setSeg($("chartExTabs"), "ex", ex);
+  refreshHistory();
+}
+$("chartExTabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-ex]"); if (b) setChartEx(b.dataset.ex);
+});
 
 function bindSeg(id, attr, key, after) {
   $(id).addEventListener("click", (e) => {
@@ -249,6 +302,11 @@ async function loadSettings() {
   $("tgState").textContent = s.telegram_enabled ? "Telegram connected" : "Telegram not configured";
   if (!$("ruleEx").options.length) {
     $("ruleEx").innerHTML = ["any", ...s.exchanges].map((x) => `<option value="${esc(x)}">${x === "any" ? "Any exchange" : esc(x[0].toUpperCase() + x.slice(1))}</option>`).join("");
+    $("chartExTabs").innerHTML = s.exchanges.map((x) => `<button data-ex="${esc(x)}" role="tab">${esc(x)}</button>`).join("");
+    let saved = null;
+    try { saved = localStorage.getItem("p2p.chartEx"); } catch {}
+    state.chartEx = s.exchanges.includes(saved) ? saved : s.exchanges[0];
+    setSeg($("chartExTabs"), "ex", state.chartEx);
     $("exChips").innerHTML = `<button data-ex="" class="on">All exchanges</button>` +
       s.exchanges.map((x) => `<button data-ex="${esc(x)}">${esc(x)}</button>`).join("");
   }
