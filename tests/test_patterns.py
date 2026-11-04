@@ -115,6 +115,7 @@ def test_agent_sends_once_with_escaped_ai_summary_and_respects_cooldown():
         msg = agent.poller.sent[0]
         assert "Unusual price movement" in msg and "Bybit BUY" in msg and "Sudden spike" in msg
         assert "&lt;1%&gt;" in msg                       # AI text is HTML-escaped
+        assert "🤖 <i>" not in msg                         # summary is not italic
         assert "bybit BUY last" in summ.calls[0][1]      # model gets the recent series as context
         assert (await db.list_pattern_events())[0]["kind"] == "spike"
         await agent.tick(now + 60)                        # same pattern within cooldown -> silent

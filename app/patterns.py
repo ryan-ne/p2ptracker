@@ -277,6 +277,6 @@ class PatternAgent:
     def format(self, events: list[Event], summary: str | None, now: int) -> str:
         parts = ["🚨 <b>Unusual price movement</b>", *[f"• {e.describe()}" for e in events]]
         if summary:
-            parts += ["", f"🤖 <i>{html.escape(summary)}</i>"]
+            parts += ["", f"🤖 {html.escape(summary)}"]  # plain text: italics render Myanmar script poorly
         parts.append(f"<i>{fmt_time(now, self.settings.display_tz)}</i>")
         return "\n".join(parts)
