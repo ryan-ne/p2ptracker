@@ -152,7 +152,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
         request.state.user = None
         if not auth.is_public(path) and await auth_on(request):
             request.state.user = await current_user(request)
-            if request.state.user is None:
+            if request.state.user is None and not auth.is_public_read(request.method, path):
                 if path.startswith("/api/"):
                     return JSONResponse({"detail": "login required"}, 401)
                 nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "")
@@ -203,7 +203,9 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
 
     @app.get("/api/me", include_in_schema=False)
     async def me(request: Request):
-        return {"auth": await auth_on(request), "user": request.state.user}
+        on = await auth_on(request)
+        user = request.state.user
+        return {"auth": on, "user": user, "can_edit": (not on) or user is not None}
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz(request: Request):

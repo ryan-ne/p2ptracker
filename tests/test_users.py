@@ -38,7 +38,7 @@ def test_no_login_until_first_user_added(tmp_path):
         assert c.get("/api/alerts").status_code == 200          # open: no .env login, no users
         add_user(c, "alice", "alice-pass-1")
         assert c.get("/api/alerts").status_code == 401          # first user turns login on immediately
-        assert c.get("/").status_code == 303
+        assert c.get("/docs").status_code == 303
 
 
 def test_multiple_users_sign_in_independently(tmp_path):
@@ -47,8 +47,8 @@ def test_multiple_users_sign_in_independently(tmp_path):
         add_user(a, "bob", "bob-pass-12")
         assert login(a, "Alice", "alice-pass-1").json() == {"ok": True, "user": "alice"}   # case-insensitive
         assert login(b, "bob", "bob-pass-12").status_code == 200
-        assert a.get("/api/me").json() == {"auth": True, "user": "alice"}
-        assert b.get("/api/me").json() == {"auth": True, "user": "bob"}
+        assert a.get("/api/me").json() == {"auth": True, "user": "alice", "can_edit": True}
+        assert b.get("/api/me").json() == {"auth": True, "user": "bob", "can_edit": True}
         assert login(a, "bob", "alice-pass-1").status_code == 401            # wrong password
         assert login(a, "nobody", "whatever-123").status_code == 401         # unknown user
         assert a.get("/api/alerts").status_code == 200                       # failed attempts don't log out

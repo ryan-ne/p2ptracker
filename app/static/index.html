@@ -24,7 +24,7 @@
     <a href="#market" class="active">P2P</a>
     <a href="#history">Chart</a>
     <a href="#alerts">Alerts</a>
-    <a href="#filters">Filters</a>
+    <a href="#filters" class="edit-only">Filters</a>
   </nav>
   <div class="top-right">
     <span class="live"><span class="pulse"></span><span id="updated">connecting…</span></span>
@@ -36,10 +36,11 @@
         <option value="300">5 min</option><option value="600">10 min</option>
       </select>
     </label>
-    <label class="toggle" title="Mute all alerts">
+    <label class="toggle edit-only" title="Mute all alerts">
       <input type="checkbox" id="paused"><span class="track"><span class="knob"></span></span><span class="toggle-label">Pause alerts</span>
     </label>
     <span class="whoami" id="whoami" title="Signed in as" hidden></span>
+    <a class="signin viewer-only" href="/login">Sign in</a>
     <button class="logout" id="logout" hidden aria-label="Log out"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="logout-label">Log out</span></button>
   </div>
 </header>
@@ -100,7 +101,7 @@
   </section>
 
   <section id="alerts" class="grid2">
-    <div class="panel">
+    <div class="panel edit-only" id="rulesPanel">
       <div class="panel-head"><h2>Price alerts</h2><span class="muted small" id="tgState"></span></div>
       <form id="ruleForm" class="rule-form">
         <label><span>Exchange</span><select name="exchange" id="ruleEx"></select></label>
@@ -120,7 +121,7 @@
     </div>
   </section>
 
-  <section id="filters" class="panel">
+  <section id="filters" class="panel edit-only">
     <div class="panel-head"><h2>Ad filters</h2></div>
     <p class="muted small">Only ads matching these filters count toward the ad list, best price and avg 5. Leave empty for all ads.</p>
     <div id="filters-body" class="filters"></div>
@@ -131,7 +132,7 @@
   <a href="#market" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>P2P</span></a>
   <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l5-5 4 3 7-8"/></svg><span>Chart</span></a>
   <a href="#alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span>Alerts</span></a>
-  <a href="#filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg><span>Filters</span></a>
+  <a href="#filters" class="edit-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg><span>Filters</span></a>
 </nav>
 <script src="/static/app.js"></script>
 </body>

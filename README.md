@@ -94,6 +94,11 @@ To stop, delete the key in Binance (instant) or remove it from `.env`.
 
 ## Users
 
+**Anyone can view** the dashboard without signing in: live prices, exchange cards, the ad list,
+charts and pattern alerts. **Signing in is required to change anything** (alerts, pause, filters,
+polling interval) and to see your alert rules and alert history, since those reveal the prices you
+watch. Visitors see a *Sign in* button; the server rejects any change from them, not just the UI.
+
 Everyone who signs in has the same access (alerts, filters and settings are shared). Manage
 accounts on the server; changes apply immediately, no restart:
 

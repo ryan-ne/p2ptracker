@@ -234,7 +234,7 @@ const PATTERN_LABEL = { spike: "Sudden spike", drop: "Sudden drop", trend_up: "R
 
 async function refreshEvents() {
   const [alerts, patterns] = await Promise.all([
-    api("/api/alert-events?limit=30"),
+    state.canEdit === false ? Promise.resolve([]) : api("/api/alert-events?limit=30"),  // private: reveals your thresholds
     api("/api/pattern-events?limit=30").catch(() => []),
   ]);
   const rows = [
@@ -386,15 +386,23 @@ $("logout").addEventListener("click", async () => {
 });
 
 (async function init() {
-  api("/api/me").then((m) => {
-    $("logout").hidden = !m.auth;
+  // Visitors (login on, not signed in) can view everything public but change nothing.
+  try {
+    const m = await api("/api/me");
+    state.canEdit = m.can_edit !== false;
+    $("logout").hidden = !(m.auth && m.user);
     if (m.user) { $("whoami").textContent = m.user; $("whoami").hidden = false; }
-  }).catch(() => {});
+  } catch { state.canEdit = true; }
+  document.body.classList.toggle("viewer", !state.canEdit);
+  $("pollSel").disabled = !state.canEdit;
+  if (!state.canEdit) $("pollSel").title = "Sign in to change";
+
   await loadSettings().catch(() => {});
   refreshLatest(); refreshAds(); refreshHistory();
-  refreshRules().catch(() => {}); refreshEvents().catch(() => {});
+  const refreshPrivate = () => { if (state.canEdit) refreshRules().catch(() => {}); refreshEvents().catch(() => {}); };
+  refreshPrivate();
   liveLoop();
   setInterval(() => { if (state.range === "1h" || state.range === "24h") refreshHistory(); }, 15000);
-  setInterval(() => { refreshRules().catch(() => {}); refreshEvents().catch(() => {}); }, 15000);
+  setInterval(refreshPrivate, 15000);
   setInterval(() => { loadSettings().catch(() => {}); }, 60000);
 })();

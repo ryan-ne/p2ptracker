@@ -371,3 +371,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .filters .amt { flex-wrap: wrap; }
   .filters .amt input { width: 100%; }
 }
+
+/* ---------- visitors (not signed in): view only ---------- */
+.viewer-only { display: none !important; }
+body.viewer .viewer-only { display: inline-flex !important; }
+body.viewer .edit-only { display: none !important; }
+body.viewer .bottom-nav { grid-template-columns: repeat(3, 1fr); }
+body.viewer .interval select { opacity: .7; cursor: not-allowed; }
+.signin { align-items: center; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 13px;
+  background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
+.signin:hover { background: var(--accent-hover); }

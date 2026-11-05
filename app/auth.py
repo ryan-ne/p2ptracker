@@ -17,6 +17,14 @@ COOKIE = "p2p_session"
 SESSION_TTL = 30 * 86400
 PUBLIC_PATHS = {"/login", "/api/login", "/api/logout", "/healthz", "/favicon.ico"}
 PUBLIC_PREFIXES = ("/static/",)
+# Anyone may VIEW market data without signing in. Changing anything (any non-GET request) and
+# reading alert rules / alert history (they reveal the prices you watch) still require login.
+PUBLIC_READ_PATHS = {"/", "/api/latest", "/api/ads", "/api/history", "/api/pattern-events",
+                     "/api/settings", "/api/me"}
+
+
+def is_public_read(method: str, path: str) -> bool:
+    return method in ("GET", "HEAD") and path in PUBLIC_READ_PATHS
 
 MAX_FAILS = 10
 FAIL_WINDOW = 15 * 60

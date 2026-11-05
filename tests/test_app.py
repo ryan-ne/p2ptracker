@@ -149,8 +149,9 @@ def auth_app(tmp_path, pw="p"):
 def test_login_flow(tmp_path):
     with TestClient(auth_app(tmp_path), follow_redirects=False) as c:
         # unauthenticated: pages redirect to login, API gets 401, public paths open
-        r = c.get("/?x=1")
-        assert r.status_code == 303 and r.headers["location"] == "/login?next=/%3Fx%3D1"
+        assert c.get("/").status_code == 200                # dashboard is public to view
+        r = c.get("/docs?x=1")                              # any other page still needs login
+        assert r.status_code == 303 and r.headers["location"] == "/login?next=/docs%3Fx%3D1"
         assert c.get("/api/alerts").status_code == 401
         assert c.get("/healthz").status_code == 200
         assert c.get("/login").status_code == 200
@@ -163,7 +164,7 @@ def test_login_flow(tmp_path):
         assert "HttpOnly" in cookie and "samesite=lax" in cookie.lower()
         assert c.get("/api/alerts").status_code == 200
         assert c.get("/login").status_code == 303           # already signed in -> dashboard
-        assert c.get("/api/me").json() == {"auth": True, "user": "u"}
+        assert c.get("/api/me").json() == {"auth": True, "user": "u", "can_edit": True}
 
         c.post("/api/logout")
         assert c.get("/api/alerts").status_code == 401
@@ -211,7 +212,7 @@ def test_browser_cached_basic_auth_ignored(tmp_path):
     browser = {**basic, "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors"}
     with TestClient(auth_app(tmp_path), follow_redirects=False) as c:
         assert c.get("/api/alerts", headers=browser).status_code == 401
-        assert c.get("/", headers={**basic, "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate"}).status_code == 303
+        assert c.get("/api/me", headers=browser).json()["user"] is None   # cached Basic not accepted from browsers
         c.post("/api/login", json={"username": "u", "password": "p"})
         assert c.get("/api/alerts", headers=browser).status_code == 200      # cookie session works
         r = c.post("/api/logout", headers=browser)
@@ -227,3 +228,26 @@ def test_no_auth_configured(tmp_path):
         assert c.get("/api/alerts").status_code == 200
         assert c.get("/login").status_code == 303
         assert c.get("/api/me").json()["auth"] is False
+
+
+def test_public_view_login_to_change(tmp_path):
+    with TestClient(auth_app(tmp_path), follow_redirects=False) as c:
+        # anyone can view market data
+        for path in ("/", "/api/latest", "/api/ads?side=BUY", "/api/history?range=1h",
+                     "/api/pattern-events", "/api/settings"):
+            assert c.get(path).status_code == 200, path
+        assert c.get("/api/me").json() == {"auth": True, "user": None, "can_edit": False}
+        # alert rules / alert history stay private (they reveal the prices you watch)
+        assert c.get("/api/alerts").status_code == 401
+        assert c.get("/api/alert-events").status_code == 401
+        # every change needs login
+        assert c.post("/api/alerts", json={"exchange": "any", "side": "BUY", "op": "<=", "threshold": 1}).status_code == 401
+        assert c.patch("/api/alerts/1", json={"enabled": False}).status_code == 401
+        assert c.delete("/api/alerts/1").status_code == 401
+        assert c.put("/api/settings", json={"alerts_paused": True}).status_code == 401
+        assert c.put("/api/settings", json={"poll_interval": 3600}).status_code == 401
+        assert c.get("/api/settings").json()["alerts_paused"] is False   # nothing changed
+        # after signing in, changes work
+        c.post("/api/login", json={"username": "u", "password": "p"})
+        assert c.put("/api/settings", json={"alerts_paused": True}).status_code == 200
+        assert c.get("/api/alerts").status_code == 200
