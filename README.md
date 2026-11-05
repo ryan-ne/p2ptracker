@@ -117,7 +117,8 @@ required as soon as either exists. Passwords are stored as salted scrypt hashes.
 ## Pattern agent (sudden moves → group chat)
 
 Every `PATTERN_INTERVAL` seconds (default 60) the agent turns the last hour of stored best prices into
-1-minute closes per exchange/side and checks two rules:
+1-minute closes per exchange and checks two rules. By default it watches **BUY rates only** (what you
+pay for 1 USDT); set `PATTERN_SIDES=BUY,SELL` to include sell rates.
 
 | Pattern | Fires when (defaults) |
 |---|---|

@@ -206,3 +206,44 @@ def test_claude_summarizer_api_error_returns_none(monkeypatch):
     monkeypatch.setattr(s.client.beta.messages, "create", boom)
     from app.patterns import Event
     assert run(s.summarize([Event("bybit", "BUY", "drop", 1, -1, 1, 0.99, -5)], "ctx")) is None
+
+
+async def seed_sell_spike(db, now):
+    """Quiet BUY and SELL for 60 min, then a +1% jump on bybit SELL only."""
+    rows = []
+    for m in range(61):
+        ts = now - (60 - m) * 60
+        sell = 4830 + (m % 2) if m < 60 else 4830 * 1.01
+        rows.append((ts, "bybit", "BUY", 4860.0 + (m % 2), 4865.0, 10))
+        rows.append((ts, "bybit", "SELL", sell, sell, 10))
+    await db.insert_snapshots(rows)
+
+
+def test_agent_watches_buy_only_by_default():
+    async def go():
+        db = Database(":memory:"); await db.connect()
+        now = 1_800_000_000
+        await seed_sell_spike(db, now)
+        summ = FakeSummarizer()
+        agent = PatternAgent(Settings(_env_file=None), db, FakePoller(), summ)
+        assert await agent.tick(now) == []                 # SELL spike ignored
+        assert agent.poller.sent == [] and summ.calls == []
+
+        both = PatternAgent(Settings(_env_file=None, pattern_sides="BUY,SELL"), db, FakePoller(), summ)
+        events = await both.tick(now)
+        assert [(e.side, e.kind) for e in events] == [("SELL", "spike")]
+        await db.close()
+    run(go())
+
+
+def test_context_only_contains_watched_side():
+    series = {("bybit", "BUY"): [4860.0, 4861.0], ("bitget", "BUY"): [4880.0]}
+    ctx = PatternAgent.context(series)
+    assert ctx.startswith("Watched rates: BUY only (what a user pays for 1 USDT)")
+    assert "SELL" not in ctx.replace("Watched rates: BUY only", "")
+
+
+def test_pattern_side_setting_parsing():
+    assert Settings(_env_file=None).pattern_side_list == {"BUY"}
+    assert Settings(_env_file=None, pattern_sides="sell, buy").pattern_side_list == {"BUY", "SELL"}
+    assert Settings(_env_file=None, pattern_sides="nonsense").pattern_side_list == {"BUY"}

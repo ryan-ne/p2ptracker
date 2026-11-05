@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     pattern_trend_minutes: int = 10     # min length of a one-direction run
     pattern_trend_pct: float = 0.3      # min total % move over that run
     pattern_cooldown_min: int = 30      # don't repeat the same pattern for the same market within this
+    pattern_sides: str = "BUY"          # which rates the agent watches: BUY (default), SELL, or BUY,SELL
     # AI summary of each detection (leave the key empty to send rule-based messages only)
     anthropic_api_key: str = ""
     pattern_model: str = "claude-opus-5-5"
@@ -53,6 +54,11 @@ class Settings(BaseSettings):
     @property
     def binance_enabled(self) -> bool:
         return bool(self.binance_api_key and self.binance_api_secret)
+
+    @property
+    def pattern_side_list(self) -> set[str]:
+        sides = {s.strip().upper() for s in self.pattern_sides.split(",")} & {"BUY", "SELL"}
+        return sides or {"BUY"}
 
     @property
     def exchange_list(self) -> list[str]:

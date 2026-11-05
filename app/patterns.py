@@ -153,8 +153,9 @@ BASE_PROMPT = (
     "You watch USDT/MMK peer-to-peer (P2P) exchange rates on several exchanges (named in the data) for traders in Myanmar. "
     "BUY is the price a user pays for 1 USDT; SELL is what a user receives for 1 USDT. "
     "A rule-based detector has flagged unusual price behaviour. Write 2-3 short sentences of plain text "
-    "for a Telegram group: what happened, whether it shows up on both exchanges or one, and anything "
-    "notable in the recent prices (e.g. the buy/sell spread widening, a reversal of an earlier move). "
+    "for a Telegram group: what happened, whether it shows up on all exchanges or one, and anything "
+    "notable in the recent prices (e.g. which exchange is now cheapest, a reversal of an earlier move). "
+    "Only discuss the rates listed as watched in the data. "
     "Describe; do not tell anyone to buy or sell, and do not predict prices. No markdown, no emojis."
 )
 
@@ -247,7 +248,8 @@ class PatternAgent:
     async def tick(self, now: int | None = None) -> list[Event]:
         now = now or int(time.time())
         th = Thresholds.from_settings(self.settings)
-        series = await self.series(now)
+        watched = self.settings.pattern_side_list            # default: BUY only
+        series = {k: v for k, v in (await self.series(now)).items() if k[1] in watched}
         events: list[Event] = []
         for (ex, side), closes in sorted(series.items()):
             for ev in (detect_spike(closes, ex, side, th), detect_trend(closes, ex, side, th)):
@@ -271,7 +273,8 @@ class PatternAgent:
 
     @staticmethod
     def context(series: dict[tuple[str, str], list[float]]) -> str:
-        lines = []
+        sides = sorted({k[1] for k in series})
+        lines = [f"Watched rates: {', '.join(sides)} only" + (" (what a user pays for 1 USDT)" if sides == ["BUY"] else "")]
         for (ex, side), closes in sorted(series.items()):
             tail = closes[-30:]
             lines.append(f"{ex} {side} last {len(tail)} one-minute closes (oldest→newest): "
