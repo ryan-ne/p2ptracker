@@ -179,6 +179,15 @@ def system_prompt(language: str) -> str:
 SYSTEM_PROMPT = system_prompt("english")  # kept for reference/tests
 
 
+# Models that accept the server-side refusal fallback (`fallbacks: "default"`). Others, such as
+# claude-haiku-5-5, would reject the request if it were sent, so it is left out for them.
+FALLBACK_MODELS = ("claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5")
+
+
+def supports_fallback(model: str) -> bool:
+    return model in FALLBACK_MODELS
+
+
 class ClaudeSummarizer:
     def __init__(self, api_key: str, model: str, language: str = "burmese"):
         from anthropic import AsyncAnthropic  # imported lazily: only needed when the AI summary is on
@@ -190,17 +199,21 @@ class ClaudeSummarizer:
         import anthropic
 
         detected = "\n".join(html.unescape(e.describe()).replace("<b>", "").replace("</b>", "") for e in events)
+        params = dict(
+            model=self.model,
+            max_tokens=2000,
+            system=self.system,
+            output_config={"effort": "low"},
+            messages=[{"role": "user", "content": f"Detected:\n{detected}\n\nRecent data:\n{context}"}],
+        )
         try:
-            resp = await self.client.beta.messages.create(
-                model=self.model,
-                max_tokens=2000,
-                system=self.system,
-                output_config={"effort": "low"},
+            if supports_fallback(self.model):
                 # Server-side fallback: if the model declines, the API retries on a fallback model.
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
-                messages=[{"role": "user", "content": f"Detected:\n{detected}\n\nRecent data:\n{context}"}],
-            )
+                resp = await self.client.beta.messages.create(
+                    **params, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+            else:
+                # e.g. claude-haiku-5-5: no server-side fallback; a decline just means no summary.
+                resp = await self.client.messages.create(**params)
         except anthropic.RateLimitError:
             log.warning("AI summary skipped: rate limited")
             return None

@@ -247,3 +247,32 @@ def test_pattern_side_setting_parsing():
     assert Settings(_env_file=None).pattern_side_list == {"BUY"}
     assert Settings(_env_file=None, pattern_sides="sell, buy").pattern_side_list == {"BUY", "SELL"}
     assert Settings(_env_file=None, pattern_sides="nonsense").pattern_side_list == {"BUY"}
+
+
+def test_haiku_request_has_no_fallback(monkeypatch):
+    s = ClaudeSummarizer(api_key="test-key", model="claude-haiku-5-5")
+    plain, beta = [], []
+
+    async def create(**kw):
+        plain.append(kw)
+        return fake_response()
+
+    async def beta_create(**kw):
+        beta.append(kw)
+        return fake_response()
+
+    monkeypatch.setattr(s.client.messages, "create", create)
+    monkeypatch.setattr(s.client.beta.messages, "create", beta_create)
+    from app.patterns import Event
+    assert run(s.summarize([Event("bybit", "BUY", "spike", 5, 0.8, 4800, 4838.4, 4.2)], "ctx"))
+    assert beta == [] and len(plain) == 1
+    kw = plain[0]
+    assert kw["model"] == "claude-haiku-5-5" and kw["output_config"] == {"effort": "low"}
+    assert "fallbacks" not in kw and "betas" not in kw and "thinking" not in kw
+    assert "Burmese" in kw["system"]
+
+
+def test_supports_fallback():
+    from app.patterns import supports_fallback
+    assert supports_fallback("claude-opus-5-5") and supports_fallback("claude-sonnet-5-5")
+    assert not supports_fallback("claude-haiku-5-5")
