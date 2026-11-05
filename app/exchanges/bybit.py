@@ -60,5 +60,6 @@ def parse(data: dict) -> list[Ad]:
             available=float(it.get("lastQuantity") or 0),
             merchant=it.get("nickName", ""),
             pay_methods=[payment_name(p) for p in it.get("payments") or []],
+            ad_id=str(it.get("id") or ""),
         ))
     return ads

@@ -25,6 +25,7 @@ class Ad:
     available: float = 0.0           # USDT
     merchant: str = ""
     pay_methods: list[str] = field(default_factory=list)
+    ad_id: str = ""                  # exchange's ad number (used to link straight to the ad where possible)
 
 
 @dataclass

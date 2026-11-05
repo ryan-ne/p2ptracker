@@ -103,5 +103,6 @@ def parse(data: dict) -> list[Ad]:
             merchant=user.get("nickName", ""),
             pay_methods=[m.get("tradeMethodName") or m.get("identifier") or ""
                          for m in adv.get("tradeMethods") or []],
+            ad_id=str(adv.get("advNo") or ""),
         ))
     return ads

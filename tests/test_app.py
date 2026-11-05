@@ -54,8 +54,10 @@ def test_poll_latest_history(client):
     assert len(rates) == 4
     d = client.get("/api/latest").json()
     assert d["exchanges"]["binance"]["BUY"]["best"] == 4835
-    assert d["best_buy"] == {"price": 4835, "exchange": "binance"}
-    assert d["best_sell"] == {"price": 4826, "exchange": "bybit"}
+    assert d["best_buy"] == {"price": 4835, "exchange": "binance",
+                           "url": "https://p2p.binance.com/en/trade/all-payments/USDT?fiat=MMK"}
+    assert d["best_sell"] == {"price": 4826, "exchange": "bybit", "url": "https://www.bybit.com/en/p2p/sell/USDT/MMK"}
+    assert d["exchanges"]["bybit"]["links"]["BUY"] == "https://www.bybit.com/en/p2p/buy/USDT/MMK"
     assert d["exchanges"]["bitget"]["status"]["ok"] is False
 
     h = client.get("/api/history?range=1h").json()
@@ -251,3 +253,11 @@ def test_public_view_login_to_change(tmp_path):
         c.post("/api/login", json={"username": "u", "password": "p"})
         assert c.put("/api/settings", json={"alerts_paused": True}).status_code == 200
         assert c.get("/api/alerts").status_code == 200
+
+
+def test_ads_include_exchange_links(client):
+    tick(client)
+    ads = client.get("/api/ads?side=BUY").json()["ads"]
+    by_ex = {a["exchange"]: a["url"] for a in ads}
+    assert by_ex["binance"] == "https://p2p.binance.com/en/trade/all-payments/USDT?fiat=MMK"  # fake ads have no ad id
+    assert by_ex["bybit"] == "https://www.bybit.com/en/p2p/buy/USDT/MMK"

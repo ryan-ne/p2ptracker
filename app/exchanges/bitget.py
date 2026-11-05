@@ -38,5 +38,6 @@ def parse(data: dict) -> list[Ad]:
             merchant=(it.get("nickName") or "").strip(),
             pay_methods=[(p.get("paymethodName") or str(p.get("paymethodId", ""))).strip()
                          for p in pays if isinstance(p, dict)],
+            ad_id=str(it.get("adNo") or ""),
         ))
     return ads

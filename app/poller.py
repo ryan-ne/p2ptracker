@@ -12,6 +12,7 @@ from .alerts import AlertEngine, format_alert
 from .config import Settings
 from .db import Database
 from .exchanges import SIDES, Exchange, Filters, Rate, apply_filters, compute_rate, drop_non_cash
+from .exchanges.links import p2p_url
 
 log = logging.getLogger("poller")
 
@@ -101,7 +102,8 @@ class Poller:
             ranked = sorted((a for a in ads if a.price > 0), key=lambda a: a.price, reverse=(side == "SELL"))
             self.top_ads[ex.name][side] = [
                 {"price": a.price, "merchant": a.merchant, "available": a.available, "min": a.min_amount,
-                 "max": a.max_amount if a.max_amount != float("inf") else None, "pay_methods": a.pay_methods}
+                 "max": a.max_amount if a.max_amount != float("inf") else None, "pay_methods": a.pay_methods,
+                 "url": p2p_url(ex.name, side, a.ad_id or None)}
                 for a in ranked[:10]
             ]
             rate = compute_rate(ex.name, side, ads, self.s.top_n)

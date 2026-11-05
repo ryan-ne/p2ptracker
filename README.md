@@ -143,6 +143,13 @@ moved or one, and the spread. It only describes, never advises. It's called only
 - Raw rows older than `RAW_RETENTION_DAYS` (30) are rolled into hourly OHLC (`rate_ohlc_1h`) and kept forever.
 - History API picks resolution automatically: raw ≤6h, 1-min ≤2d, 5-min ≤14d, else hourly.
 
+## Open on the exchange
+
+Every price leads to the exchange's own USDT/MMK P2P page, in a new tab: "Buy on …" under the
+cheapest price, **Buy USDT ↗ / Sell USDT ↗** on each exchange card, and every ad row. Binance ads
+open the exact ad; Bybit and Bitget have no public single-ad link, so they open the buy/sell list.
+Telegram price and pattern alerts carry the same link (previews are disabled to keep messages short).
+
 ## Ad filters
 
 Dashboard → *Ad filters*: per exchange, a trade amount in MMK (ad must accept it) and payment methods

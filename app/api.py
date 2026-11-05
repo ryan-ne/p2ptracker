@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from .alerts import validate_rule
+from .exchanges.links import p2p_url
 
 router = APIRouter(prefix="/api")
 
@@ -54,15 +55,23 @@ async def latest(request: Request):
     out = {}
     for ex, sides in p.latest.items():
         st = p.status[ex]
-        out[ex] = {**sides, "status": {k: st[k] for k in ("ok", "error", "fails", "last_ok", "empty")}}
+        out[ex] = {**sides, "status": {k: st[k] for k in ("ok", "error", "fails", "last_ok", "empty")},
+                   "links": {"BUY": p2p_url(ex, "BUY"), "SELL": p2p_url(ex, "SELL")}}
     buys = [(s["BUY"]["best"], ex) for ex, s in p.latest.items() if "BUY" in s]
     sells = [(s["SELL"]["best"], ex) for ex, s in p.latest.items() if "SELL" in s]
+
+    def best(pair, side):
+        if not pair:
+            return None
+        price, ex = pair
+        return {"price": price, "exchange": ex, "url": p2p_url(ex, side)}
+
     return {
         "ts": p.last_tick,
         "interval": p.interval,
         "exchanges": out,
-        "best_buy": dict(zip(("price", "exchange"), min(buys))) if buys else None,
-        "best_sell": dict(zip(("price", "exchange"), max(sells))) if sells else None,
+        "best_buy": best(min(buys) if buys else None, "BUY"),
+        "best_sell": best(max(sells) if sells else None, "SELL"),
     }
 
 

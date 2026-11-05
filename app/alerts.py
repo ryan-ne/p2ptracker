@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import html
 import operator
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from .exchanges import Rate
+from .exchanges.links import exchange_title, p2p_url
 
 OPS = {"<=": operator.le, ">=": operator.ge}
 METRICS = ("best", "avg5")
@@ -70,7 +72,16 @@ def format_alert(f: Fired, now: int, tz: str) -> str:
         f"<b>{fmt_price(f.value)} MMK</b> {sym} {fmt_price(r['threshold'])}\n"
         f"best {fmt_price(rate.best)} · avg5 {fmt_price(rate.avg5)} · {rate.ads} ads\n"
         f"rule #{r['id']} · {fmt_time(now, tz)}"
+        + exchange_link_line(rate.exchange, rate.side)
     )
+
+
+def exchange_link_line(exchange: str, side: str) -> str:
+    url = p2p_url(exchange, side)
+    if not url:
+        return ""
+    verb = "Buy" if side == "BUY" else "Sell"
+    return f'\n<a href="{html.escape(url)}">{verb} USDT on {exchange_title(exchange)} ↗</a>'
 
 
 def format_rule(r: dict) -> str:

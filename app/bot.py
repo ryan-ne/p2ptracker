@@ -7,7 +7,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from telegram import Update
+from telegram import LinkPreviewOptions, Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, filters
 
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .poller import Poller
 
 log = logging.getLogger("bot")
+NO_PREVIEW = LinkPreviewOptions(is_disabled=True)  # links in alerts shouldn't expand into big preview cards
 
 HELP = (
     "<b>P2P USDT/MMK tracker</b>\n"
@@ -95,10 +96,11 @@ class TelegramBot:
         if not self.chat_id:
             log.warning("TELEGRAM_CHAT_ID not set; alert not sent: %s", text)
             return
-        await self.app.bot.send_message(chat_id=self.chat_id, text=text, parse_mode=ParseMode.HTML)
+        await self.app.bot.send_message(chat_id=self.chat_id, text=text, parse_mode=ParseMode.HTML,
+                                        link_preview_options=NO_PREVIEW)
 
     async def _reply(self, update: Update, text: str) -> None:
-        await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML)
+        await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML, link_preview_options=NO_PREVIEW)
 
     # ---- commands ----------------------------------------------------------
     async def cmd_help(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

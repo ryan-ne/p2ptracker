@@ -35,6 +35,14 @@ function setSeg(container, attr, value) {
   container.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset[attr] === value));
 }
 
+/* ---------- links to the exchange's own P2P page ---------- */
+const exName = (ex) => (ex ? ex[0].toUpperCase() + ex.slice(1) : "");
+const safeUrl = (u) => (typeof u === "string" && u.startsWith("https://") ? u : null);
+const extLink = (url, label, cls = "") => {
+  const u = safeUrl(url);
+  return u ? `<a class="ext ${cls}" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${label} <span aria-hidden="true">↗</span></a>` : esc(label);
+};
+
 /* ---------- ticker + exchange cards ---------- */
 async function refreshLatest() {
   let d;
@@ -44,9 +52,9 @@ async function refreshLatest() {
   $("updated").textContent = d.ts ? `Live · ${fmtTime(d.ts, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "waiting for first poll…";
 
   $("bestBuy").textContent = d.best_buy ? fmt(d.best_buy.price) : "–";
-  $("bestBuyEx").textContent = d.best_buy ? d.best_buy.exchange : "";
+  $("bestBuyEx").innerHTML = d.best_buy ? extLink(d.best_buy.url, `Buy on ${exName(d.best_buy.exchange)}`) : "";
   $("bestSell").textContent = d.best_sell ? fmt(d.best_sell.price) : "–";
-  $("bestSellEx").textContent = d.best_sell ? d.best_sell.exchange : "";
+  $("bestSellEx").innerHTML = d.best_sell ? extLink(d.best_sell.url, `Sell on ${exName(d.best_sell.exchange)}`) : "";
   const gap = d.best_buy && d.best_sell ? d.best_sell.price - d.best_buy.price : null;
   $("gap").textContent = gap == null ? "–" : (gap > 0 ? "+" : "") + fmt(gap);
   $("gap").className = "tk-val " + (gap > 0 ? "up" : "");
@@ -62,7 +70,8 @@ async function refreshLatest() {
     const err = st.ok === false ? `<div class="err-msg">${esc(st.error)} (${st.fails} fails)</div>` : "";
     return `<div class="card"><h3><span class="ex-dot" style="background:${EX_COLOR(ex)}"></span>${esc(ex)}${stateTxt}</h3>
       ${row("BUY", "up", b)}${row("SELL", "down", s)}${err}
-      <div class="foot"><span>Spread (buy − sell)</span><span class="num">${b && s ? fmt(b.best - s.best) : "–"}</span></div></div>`;
+      <div class="foot"><span>Spread (buy − sell)</span><span class="num">${b && s ? fmt(b.best - s.best) : "–"}</span></div>
+      <div class="card-actions">${extLink(v.links?.BUY, "Buy USDT", "btn-ext buy")}${extLink(v.links?.SELL, "Sell USDT", "btn-ext sell")}</div></div>`;
   }).join("");
 }
 
@@ -78,7 +87,10 @@ async function refreshAds() {
   }
   $("ads").innerHTML = d.ads.map((a, i) => {
     const pms = a.pay_methods.map((p) => `<span class="pm" style="--pm:${pmColor(p)}">${esc(p)}</span>`).join("");
-    return `<div class="ad">
+    const u = safeUrl(a.url);
+    const hint = a.exchange === "binance" ? "Open this ad on Binance" : `Open ${exName(a.exchange)}'s USDT/MMK page`;
+    const open = u ? `<a class="ad" href="${esc(u)}" target="_blank" rel="noopener noreferrer" title="${esc(hint)}">` : `<div class="ad">`;
+    return `${open}
       <div class="adv"><span class="avatar">${esc((a.merchant || "?").trim()[0] || "?")}</span>
         <div style="min-width:0"><div class="adv-name">${esc(a.merchant || "—")}</div>
         <span class="ex-badge"><span class="ex-dot" style="background:${EX_COLOR(a.exchange)}"></span>${esc(a.exchange)}</span></div></div>
@@ -86,7 +98,8 @@ async function refreshAds() {
       <div class="limits"><div><span class="k">Available</span><span class="num">${fmt(a.available)} USDT</span></div>
         <div><span class="k">Limit</span><span class="num">${fmt(a.min, 0)} – ${a.max == null ? "∞" : fmt(a.max, 0)} MMK</span></div></div>
       <div class="pms">${pms || '<span class="muted">—</span>'}</div>
-    </div>`;
+      ${u ? '<span class="ad-go" aria-hidden="true">↗</span>' : ""}
+    ${u ? "</a>" : "</div>"}`;
   }).join("");
 }
 

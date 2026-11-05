@@ -386,3 +386,20 @@ body.viewer .interval select { opacity: .7; cursor: not-allowed; }
 .more-btn { display: block; width: 100%; margin-top: 10px; background: transparent; color: var(--muted);
   border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 13px; }
 .more-btn:hover { color: var(--text); border-color: var(--line-strong); }
+
+/* ---------- links to the exchange (open on Binance / Bybit / Bitget) ---------- */
+.ext { color: inherit; text-decoration: none; white-space: nowrap; }
+.ext:hover { color: var(--accent); }
+.tk-sub .ext { color: var(--muted); text-transform: none; border-bottom: 1px dotted var(--faint); }
+.tk-sub .ext:hover { color: var(--accent); border-bottom-color: var(--accent); }
+a.ad { color: inherit; text-decoration: none; position: relative; cursor: pointer; }
+a.ad:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ad-go { position: absolute; top: 10px; right: 12px; color: var(--muted); font-size: 14px; opacity: 0; transition: opacity .12s; }
+a.ad:hover .ad-go, a.ad:focus-visible .ad-go { opacity: 1; color: var(--accent); }
+@media (hover: none) { .ad-go { opacity: .6; } }   /* touch screens: always hint that rows open */
+.card-actions { display: flex; gap: 10px; margin-top: 12px; }
+.btn-ext { flex: 1; text-align: center; padding: 8px 10px; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid; }
+.btn-ext.buy { color: var(--up); border-color: rgba(14, 203, 129, .45); }
+.btn-ext.buy:hover { background: rgba(14, 203, 129, .1); color: var(--up); }
+.btn-ext.sell { color: var(--down); border-color: rgba(246, 70, 93, .45); }
+.btn-ext.sell:hover { background: rgba(246, 70, 93, .1); color: var(--down); }

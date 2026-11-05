@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
-from .alerts import fmt_price, fmt_time
+from .alerts import exchange_link_line, fmt_price, fmt_time
 from .config import Settings
 from .db import Database
 
@@ -300,6 +300,10 @@ class PatternAgent:
 
     def format(self, events: list[Event], summary: str | None, now: int) -> str:
         parts = ["🚨 <b>Unusual price movement</b>", *[f"• {e.describe()}" for e in events]]
+        markets = dict.fromkeys((e.exchange, e.side) for e in events)          # unique, in order
+        links = [exchange_link_line(ex, side).strip() for ex, side in markets]
+        if any(links):
+            parts.append(" · ".join(link for link in links if link))
         if summary:
             parts += ["", f"🤖 {html.escape(summary)}"]  # plain text: italics render Myanmar script poorly
         parts.append(f"<i>{fmt_time(now, self.settings.display_tz)}</i>")
