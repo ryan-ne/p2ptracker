@@ -243,14 +243,24 @@ async function refreshEvents() {
     ...patterns.map((p) => ({ ts: p.ts, side: p.side, exchange: p.exchange, price: p.end_price, pattern: true,
       what: `${PATTERN_LABEL[p.kind] || esc(p.kind)} <span class="${p.pct > 0 ? "up" : "down"}">${p.pct > 0 ? "+" : ""}${fmt(p.pct)}%</span> / ${p.minutes} min` })),
   ].sort((a, b) => b.ts - a.ts).slice(0, 30);
+  const shown = state.eventsExpanded ? rows : rows.slice(0, EVENTS_COLLAPSED);
+  const toggle = rows.length > EVENTS_COLLAPSED
+    ? `<button class="more-btn" id="eventsToggle">${state.eventsExpanded ? "Show less" : `Show more (${rows.length - EVENTS_COLLAPSED})`}</button>`
+    : "";
   const head = `<div class="trow head"><span>Time</span><span>Market</span><span>Price</span><span>Trigger</span></div>`;
-  $("events").innerHTML = head + (rows.map((e) => `<div class="trow">
+  $("events").innerHTML = head + (shown.map((e) => `<div class="trow">
       <span class="small muted">${fmtTime(e.ts, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
       <span><span class="side-pill ${esc(e.side)}">${esc(e.side)}</span> <span style="text-transform:capitalize">${esc(e.exchange)}</span></span>
       <span class="num ${e.side === "BUY" ? "up" : "down"}">${fmt(e.price)}</span>
       <span class="small muted">${e.pattern ? '<span class="pattern-tag">Pattern</span> ' : ""}${e.what}</span></div>`).join("")
-    || `<div class="empty">No alerts fired yet.</div>`);
+    || `<div class="empty">No alerts fired yet.</div>`) + toggle;
 }
+const EVENTS_COLLAPSED = 5;
+$("events").addEventListener("click", (e) => {
+  if (!e.target.closest("#eventsToggle")) return;
+  state.eventsExpanded = !state.eventsExpanded;
+  refreshEvents().catch(() => {});
+});
 
 $("rules").addEventListener("click", async (e) => {
   const b = e.target.closest("button[data-act]"); if (!b) return;

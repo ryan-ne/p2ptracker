@@ -381,3 +381,8 @@ body.viewer .interval select { opacity: .7; cursor: not-allowed; }
 .signin { align-items: center; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 13px;
   background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
 .signin:hover { background: var(--accent-hover); }
+
+/* ---------- recent alerts: show more ---------- */
+.more-btn { display: block; width: 100%; margin-top: 10px; background: transparent; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 13px; }
+.more-btn:hover { color: var(--text); border-color: var(--line-strong); }
