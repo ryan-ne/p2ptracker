@@ -43,5 +43,5 @@ def test_pattern_alert_links_each_market_once():
     events = [Event("bybit", "BUY", "spike", 5, 0.6, 4830, 4860, 4.1),
               Event("bybit", "BUY", "trend_up", 12, 0.4, 4840, 4860),
               Event("bitget", "BUY", "drop", 1, -0.5, 4900, 4875, -3.5)]
-    msg = agent.format(events, None, 0)
+    msg = agent.format(events, 0)
     assert msg.count("Buy USDT on Bybit ↗") == 1 and msg.count("Buy USDT on Bitget ↗") == 1

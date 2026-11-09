@@ -34,10 +34,6 @@ class Settings(BaseSettings):
     pattern_trend_pct: float = 0.3      # min total % move over that run
     pattern_cooldown_min: int = 30      # don't repeat the same pattern for the same market within this
     pattern_sides: str = "BUY"          # which rates the agent watches: BUY (default), SELL, or BUY,SELL
-    # AI summary of each detection (leave the key empty to send rule-based messages only)
-    anthropic_api_key: str = ""
-    pattern_model: str = "claude-opus-5-5"
-    pattern_summary_lang: str = "burmese"   # burmese | english | any other language name
 
     # Display timezone for alert messages
     display_tz: str = "Asia/Yangon"

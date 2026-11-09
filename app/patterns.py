@@ -1,20 +1,17 @@
 """Pattern agent: every minute, look for sudden price behaviour and post it to the Telegram chat.
 
-Detection is rule-based (fast, free, predictable); Claude only writes a short plain-language
-summary of what was detected. If the AI call fails or no API key is set, the rule-based
-message is sent on its own.
+Detection is rule-based: fast, free and predictable.
 """
 
 from __future__ import annotations
 
 import asyncio
-import html
 import logging
 import math
 import statistics
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from .alerts import exchange_link_line, fmt_price, fmt_time
 from .config import Settings
@@ -145,102 +142,15 @@ def detect_trend(closes: list[float], exchange: str, side: str, th: Thresholds) 
     return None
 
 
-class Summarizer(Protocol):
-    async def summarize(self, events: list[Event], context: str) -> str | None: ...
-
-
-BASE_PROMPT = (
-    "You watch USDT/MMK peer-to-peer (P2P) exchange rates on several exchanges (named in the data) for traders in Myanmar. "
-    "BUY is the price a user pays for 1 USDT; SELL is what a user receives for 1 USDT. "
-    "A rule-based detector has flagged unusual price behaviour. Write 2-3 short sentences of plain text "
-    "for a Telegram group: what happened, whether it shows up on all exchanges or one, and anything "
-    "notable in the recent prices (e.g. which exchange is now cheapest, a reversal of an earlier move). "
-    "Only discuss the rates listed as watched in the data. "
-    "Describe; do not tell anyone to buy or sell, and do not predict prices. No markdown, no emojis."
-)
-
-BURMESE_RULES = (
-    " Write the summary in Burmese, in standard Unicode Myanmar script (not Zawgyi), using simple everyday "
-    "words a market trader would use. Keep exchange names (Bybit, Bitget), BUY/SELL, USDT, MMK and all "
-    "numbers exactly as they appear in the data (Western digits, same thousands separators), so they "
-    "match the alert lines above the summary."
-)
-
-
-def system_prompt(language: str) -> str:
-    lang = (language or "english").strip().lower()
-    if lang in ("burmese", "myanmar", "my"):
-        return BASE_PROMPT + BURMESE_RULES
-    if lang in ("english", "en"):
-        return BASE_PROMPT
-    return BASE_PROMPT + f" Write the summary in {language}; keep exchange names and numbers as in the data."
-
-
-SYSTEM_PROMPT = system_prompt("english")  # kept for reference/tests
-
-
-# Models that accept the server-side refusal fallback (`fallbacks: "default"`). Others, such as
-# claude-haiku-5-5, would reject the request if it were sent, so it is left out for them.
-FALLBACK_MODELS = ("claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5")
-
-
-def supports_fallback(model: str) -> bool:
-    return model in FALLBACK_MODELS
-
-
-class ClaudeSummarizer:
-    def __init__(self, api_key: str, model: str, language: str = "burmese"):
-        from anthropic import AsyncAnthropic  # imported lazily: only needed when the AI summary is on
-        self.client = AsyncAnthropic(api_key=api_key, timeout=45.0, max_retries=1)
-        self.model = model
-        self.system = system_prompt(language)
-
-    async def summarize(self, events: list[Event], context: str) -> str | None:
-        import anthropic
-
-        detected = "\n".join(html.unescape(e.describe()).replace("<b>", "").replace("</b>", "") for e in events)
-        params = dict(
-            model=self.model,
-            max_tokens=2000,
-            system=self.system,
-            output_config={"effort": "low"},
-            messages=[{"role": "user", "content": f"Detected:\n{detected}\n\nRecent data:\n{context}"}],
-        )
-        try:
-            if supports_fallback(self.model):
-                # Server-side fallback: if the model declines, the API retries on a fallback model.
-                resp = await self.client.beta.messages.create(
-                    **params, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
-            else:
-                # e.g. claude-haiku-5-5: no server-side fallback; a decline just means no summary.
-                resp = await self.client.messages.create(**params)
-        except anthropic.RateLimitError:
-            log.warning("AI summary skipped: rate limited")
-            return None
-        except anthropic.APIStatusError as e:
-            log.warning("AI summary failed (%s): %s", e.status_code, e.message)
-            return None
-        except anthropic.APIConnectionError as e:
-            log.warning("AI summary failed: connection error: %s", e)
-            return None
-        if resp.stop_reason == "refusal":
-            log.warning("AI summary declined")
-            return None
-        text = "".join(b.text for b in resp.content if b.type == "text").strip()
-        return text or None
-
-
 @dataclass
 class PatternAgent:
     settings: Settings
     db: Database
     poller: "Poller"
-    summarizer: Summarizer | None = None
     last_sent: dict[tuple[str, str, str], int] = field(default_factory=dict)
 
     async def run(self) -> None:
-        log.info("pattern agent: checking every %ss (AI summary %s)", self.settings.pattern_interval,
-                 "on" if self.summarizer else "off")
+        log.info("pattern agent: checking every %ss", self.settings.pattern_interval)
         await asyncio.sleep(10)  # let the first polls land
         while True:
             try:
@@ -278,33 +188,14 @@ class PatternAgent:
             self.last_sent[ev.key] = now
             await self.db.add_pattern_event(now, ev.exchange, ev.side, ev.kind, ev.minutes, ev.pct,
                                             ev.start, ev.end, ev.z)
-        summary = None
-        if self.summarizer:
-            summary = await self.summarizer.summarize(events, self.context(series))
-        await self.poller._notify(self.format(events, summary, now))
+        await self.poller._notify(self.format(events, now))
         return events
 
-    @staticmethod
-    def context(series: dict[tuple[str, str], list[float]]) -> str:
-        sides = sorted({k[1] for k in series})
-        lines = [f"Watched rates: {', '.join(sides)} only" + (" (what a user pays for 1 USDT)" if sides == ["BUY"] else "")]
-        for (ex, side), closes in sorted(series.items()):
-            tail = closes[-30:]
-            lines.append(f"{ex} {side} last {len(tail)} one-minute closes (oldest→newest): "
-                         + ", ".join(fmt_price(c) for c in tail))
-        for ex in sorted({k[0] for k in series}):
-            b, s = series.get((ex, "BUY")), series.get((ex, "SELL"))
-            if b and s:
-                lines.append(f"{ex} spread now (buy − sell): {fmt_price(b[-1] - s[-1])} MMK")
-        return "\n".join(lines)
-
-    def format(self, events: list[Event], summary: str | None, now: int) -> str:
+    def format(self, events: list[Event], now: int) -> str:
         parts = ["🚨 <b>Unusual price movement</b>", *[f"• {e.describe()}" for e in events]]
         markets = dict.fromkeys((e.exchange, e.side) for e in events)          # unique, in order
         links = [exchange_link_line(ex, side).strip() for ex, side in markets]
         if any(links):
             parts.append(" · ".join(link for link in links if link))
-        if summary:
-            parts += ["", f"🤖 {html.escape(summary)}"]  # plain text: italics render Myanmar script poorly
         parts.append(f"<i>{fmt_time(now, self.settings.display_tz)}</i>")
         return "\n".join(parts)

@@ -79,12 +79,7 @@ def create_app(settings: Settings | None = None, start_background: bool = True) 
             tasks = [asyncio.create_task(poller.run(), name="poller"),
                      asyncio.create_task(retention_loop(db, settings.raw_retention_days), name="retention")]
             if settings.pattern_enabled:
-                summarizer = None
-                if settings.anthropic_api_key:
-                    from .patterns import ClaudeSummarizer
-                    summarizer = ClaudeSummarizer(settings.anthropic_api_key, settings.pattern_model,
-                                                  settings.pattern_summary_lang)
-                app.state.pattern_agent = PatternAgent(settings, db, poller, summarizer)
+                app.state.pattern_agent = PatternAgent(settings, db, poller)
                 tasks.append(asyncio.create_task(app.state.pattern_agent.run(), name="patterns"))
             await poller.load_interval()
             log.info("polling %s every %.0fs", settings.exchange_list, poller.interval)
